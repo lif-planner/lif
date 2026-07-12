@@ -3,130 +3,179 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LiF — Local-first household &amp; retirement planning</title>
-  <meta name="description" content="LiF is a self-hosted, local-first planning tool for household finances and FIRE-style retirement projections, built around the German tax and benefits landscape.">
+  <title>LiF - Local-first financial life planning</title>
+  <meta name="description" content="LiF is a local-first household finance and retirement planning tool for German-style life planning.">
+  <meta property="og:title" content="LiF - Local-first financial life planning">
+  <meta property="og:description" content="Plan household cash flow, depots, mortgages, pensions, scenarios, and retirement without sending private data to a hosted service.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/analytics.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
-  <header class="hero">
-    <div class="wrap hero-inner">
-      <div class="brand">
-        <img src="favicon.svg" alt="" class="brand-mark" width="40" height="40">
-        <span class="brand-name">LiF</span>
-      </div>
-      <nav class="hero-nav">
-        <a href="#features">Features</a>
-        <a href="#get-started">Get started</a>
-        <a href="https://github.com/yogitea/LiF">GitHub</a>
-      </nav>
-    </div>
-    <div class="wrap hero-content">
-      <h1>Plan your household's money, and your path to FIRE, on your own machine.</h1>
-      <p class="lede">
-        LiF is a self-hosted personal-finance and retirement-projection tool
-        built around how money actually works for a family in Germany —
-        Kindergeld, statutory pension assumptions, depot holdings, mortgages,
-        and long-horizon projections you can audit line by line.
-      </p>
-      <div class="cta-row">
-        <a class="button" href="https://github.com/yogitea/LiF">View on GitHub</a>
-        <a class="button secondary" href="https://github.com/yogitea/LiF#readme">Read the docs</a>
-      </div>
-    </div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="LiF home">
+      <img src="favicon.svg" alt="" width="36" height="36">
+      <span>LiF</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="#models">Models</a>
+      <a href="#privacy">Local-first</a>
+      <a href="#start">Quick start</a>
+      <a href="https://github.com/lif-planner/lif">GitHub</a>
+    </nav>
   </header>
 
-  <main>
-    <section class="wrap pillars">
-      <div class="pillar">
-        <h3>Local-first, always private</h3>
-        <p>Runs on your own machine or a server you control. Your account
-        balances, salary, and family data never leave it — no cloud account,
-        no telemetry, no third party in the loop.</p>
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Local-first planning for German households</p>
+        <h1>Financial life planning without sending your family data away.</h1>
+        <p class="lede">
+          LiF helps you model household cash flow, depots, mortgages, pensions,
+          gifts, children, real estate, and retirement scenarios over decades.
+          It runs locally, starts with synthetic demo data, and keeps the numbers
+          auditable.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/lif-planner/lif">View on GitHub</a>
+          <a class="button secondary" href="https://github.com/lif-planner/lif#quick-demo">Run the demo</a>
+        </div>
+        <dl class="hero-facts">
+          <div>
+            <dt>Version</dt>
+            <dd>1.0</dd>
+          </div>
+          <div>
+            <dt>Stack</dt>
+            <dd>Python + Django</dd>
+          </div>
+          <div>
+            <dt>License</dt>
+            <dd>MIT</dd>
+          </div>
+        </dl>
       </div>
-      <div class="pillar">
-        <h3>Built for how Germany actually works</h3>
-        <p>Kindergeld, statutory pension-style retirement assumptions,
-        Vorabpauschale/Teilfreistellung-aware depot modeling, and mortgage
-        refinance assumptions — not a generic spreadsheet template.</p>
+      <figure class="hero-shot">
+        <img src="assets/analytics.png" alt="LiF analytics page showing long-term balance projections and forecast controls">
+      </figure>
+    </section>
+
+    <section class="section intro">
+      <div>
+        <p class="eyebrow">What it is</p>
+        <h2>Future planning, not a budgeting clone.</h2>
       </div>
-      <div class="pillar">
-        <h3>Every number is explainable</h3>
-        <p>Monthly and yearly audit pages trace every projected balance back
-        to the opening balance and the line items that changed it. Nothing
-        is a black box.</p>
+      <p>
+        Budgeting tools are good at today. LiF is for the next year, five years
+        out, kids growing up, mortgage decisions, depot drawdowns, inheritance
+        planning, and retirement. It turns a household model into yearly and
+        monthly projections you can inspect instead of trusting a black box.
+      </p>
+    </section>
+
+    <section id="models" class="section">
+      <div class="section-heading">
+        <p class="eyebrow">What it models</p>
+        <h2>Built around real household decisions.</h2>
+      </div>
+      <div class="model-grid">
+        <article>
+          <span>01</span>
+          <h3>Family and income</h3>
+          <p>Adults, children, Kindergeld-style income, salaries, bonuses, RSUs,
+          salary changes, and milestones as children grow up.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Accounts and depots</h3>
+          <p>Cash, savings, depots, child-owned assets, bonds, distributions,
+          planned purchases, and transfers between accounts.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Debt and real estate</h3>
+          <p>Mortgages, fixed-interest periods, refinance assumptions, private
+          loans, property ownership, and transfer planning.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Retirement and scenarios</h3>
+          <p>German statutory pension-style assumptions, private pensions, FIRE
+          cash goals, scenario clones, reviews, and confidence checks.</p>
+        </article>
       </div>
     </section>
 
-    <section id="features" class="wrap features">
-      <h2>What it models</h2>
-      <div class="feature-grid">
-        <div class="feature">
-          <h4>Household &amp; family</h4>
-          <p>Adults, children, Kindergeld-style child income, child
-          milestones, and salary changes over time.</p>
-        </div>
-        <div class="feature">
-          <h4>Accounts &amp; depots</h4>
-          <p>Manual or CSV-imported accounts, depot holdings with
-          per-holding ETF distribution rates, and transfer rules between
-          them.</p>
-        </div>
-        <div class="feature">
-          <h4>Debt &amp; mortgages</h4>
-          <p>Interest/principal split repayment, fixed-interest periods, and
-          refinance assumptions.</p>
-        </div>
-        <div class="feature">
-          <h4>Retirement &amp; equity</h4>
-          <p>German statutory pension-style retirement income and RSU/equity
-          grant vesting income.</p>
-        </div>
-        <div class="feature">
-          <h4>Long-term projections</h4>
-          <p>Monthly-granularity calculations rolled up into yearly reports,
-          for as many decades out as you need.</p>
-        </div>
-        <div class="feature">
-          <h4>Scenarios &amp; analytics</h4>
-          <p>Clone a household into a what-if scenario and compare outcomes
-          side by side.</p>
-        </div>
-        <div class="feature">
-          <h4>Imports</h4>
-          <p>Preview-first CSV imports for accounts and depot holdings, with
-          a dry-run table before anything is applied.</p>
-        </div>
-        <div class="feature">
-          <h4>Data quality &amp; audits</h4>
-          <p>Built-in readiness checks and full monthly/yearly audit pages
-          for every projected figure.</p>
-        </div>
+    <section class="screens section" aria-labelledby="screens-title">
+      <div class="section-heading">
+        <p class="eyebrow">Screenshots</p>
+        <h2 id="screens-title">Synthetic demo data, real planning flows.</h2>
+      </div>
+      <div class="screen-grid">
+        <figure>
+          <img src="assets/dashboard.png" alt="LiF dashboard showing demo tour, household navigation, and attention rail">
+          <figcaption>Start from a household dashboard with demo data, data-health checks, and planning shortcuts.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/report.png" alt="LiF yearly report showing income, cash goal, ETF draw, and planning drivers">
+          <figcaption>Turn the model into yearly summaries that are easier to discuss with the household.</figcaption>
+        </figure>
       </div>
     </section>
 
-    <section id="get-started" class="wrap get-started">
-      <h2>Get started</h2>
-      <p>LiF runs locally with Python and Django. No account, no signup, no
-      external service required.</p>
-      <pre class="code-block"><code>git clone https://github.com/yogitea/LiF.git
-cd LiF
+    <section id="privacy" class="privacy">
+      <div>
+        <p class="eyebrow">Local-first promise</p>
+        <h2>Your data stays where you run it.</h2>
+      </div>
+      <ul>
+        <li>No hosted sync or required cloud account.</li>
+        <li>No telemetry in the app.</li>
+        <li>No third-party finance API by default.</li>
+        <li>Synthetic demo data lets you explore before entering private numbers.</li>
+      </ul>
+    </section>
+
+    <section id="start" class="section start">
+      <div class="start-copy">
+        <p class="eyebrow">Quick start</p>
+        <h2>Run the demo locally.</h2>
+        <p>
+          LiF is a Django app. Clone it, install the locked dependencies,
+          migrate, seed the synthetic demo, and open it in your browser.
+        </p>
+      </div>
+      <pre><code>git clone https://github.com/lif-planner/lif.git
+cd lif
 pipenv install
 pipenv run python manage.py migrate
 pipenv run python manage.py seed_demo
 pipenv run python manage.py runserver 127.0.0.1:8000</code></pre>
-      <p>Then open <code>http://127.0.0.1:8000/</code>. See the
-      <a href="https://github.com/yogitea/LiF#readme">README</a> for
-      container and always-on deployment options.</p>
+    </section>
+
+    <section class="status section">
+      <div>
+        <p class="eyebrow">Project status</p>
+        <h2>Usable, local, and evolving.</h2>
+      </div>
+      <p>
+        LiF 1.0 is the first public release. It is useful for experimentation
+        and self-hosted planning, but it is not financial advice. German
+        language support, reporting, imports, and UI polish will keep improving
+        in public.
+      </p>
+      <a class="button secondary" href="https://github.com/lif-planner/lif/blob/main/ROADMAP.md">Read the roadmap</a>
     </section>
   </main>
 
-  <footer class="wrap site-footer">
+  <footer class="site-footer">
+    <p>LiF is MIT-licensed open source.</p>
     <p>
-      LiF is free software, licensed under the
-      <a href="https://github.com/yogitea/LiF/blob/main/LICENSE">GNU AGPL-3.0</a>.
+      <a href="https://github.com/lif-planner/lif">GitHub</a>
+      <a href="https://github.com/lif-planner/lif/blob/main/docs/USER_GUIDE.md">User guide</a>
+      <a href="https://github.com/lif-planner/lif/blob/main/SECURITY.md">Security</a>
     </p>
-    <p><a href="https://github.com/yogitea/LiF">github.com/yogitea/LiF</a></p>
   </footer>
 </body>
 </html>
