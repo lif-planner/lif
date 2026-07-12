@@ -374,6 +374,22 @@ code {
   padding: clamp(1.2rem, 4vw, 2rem);
 }
 
+.ai-note {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ai-note p:last-child {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+}
+
 .site-footer {
   display: flex;
   justify-content: space-between;
@@ -400,7 +416,8 @@ code {
   .intro,
   .privacy,
   .start,
-  .status {
+  .status,
+  .ai-note {
     grid-template-columns: 1fr;
   }
 
