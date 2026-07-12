@@ -1,0 +1,124 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Accounts" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Money" as section_label %}
+{% trans "Accounts" as accounts_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=accounts_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Accounts" %}</p>
+        <h1>{% trans "Current foundation" %}</h1>
+        <p class="muted">{% trans "Cash, savings, depot, property, and loan balances that projections start from." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:account_setup' %}">{% trans "Account wizard" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:account_create' %}">{% trans "Add account" %}</a>
+                <a href="{% url 'planner:general_pool_detail' %}">{% trans "General pool" %}</a>
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric"><span>{% trans "Liquid" %}</span><strong>{{ liquid_total|money:household.currency }}</strong></div>
+    <div class="metric"><span>{% trans "Invested" %}</span><strong>{{ invested_total|money:household.currency }}</strong></div>
+    <div class="metric"><span>{% trans "Net worth" %}</span><strong class="{% if net_worth < 0 %}negative{% endif %}">{{ net_worth|money:household.currency }}</strong></div>
+    <div class="metric"><span>{% trans "Tracked child assets" %}</span><strong>{{ child_tracked_total|money:household.currency }}</strong><small>{% trans "Not counted in household planning net worth" %}</small></div>
+</section>
+
+<section class="metrics compact">
+    {% for group in grouped_totals %}
+        <div class="metric">
+            <span>{{ group.label }}</span>
+            <strong class="{% if group.value < 0 %}negative{% endif %}">{{ group.value|money:household.currency }}</strong>
+        </div>
+    {% endfor %}
+</section>
+
+{% if stale_accounts or depot_warnings %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Review" %}</h2>
+        {% if feature_flags.imports %}<a href="{% url 'planner:import_center' %}">{% trans "Update from import" %}</a>{% endif %}
+    </div>
+    <div class="issue-list">
+        {% for account in stale_accounts %}
+            <div class="issue-row warning">
+                <div>
+                    <span class="status-pill warning">{% trans "stale" %}</span>
+                    <h3>{% blocktrans with name=account.name %}{{ name }} valuation may be old{% endblocktrans %}</h3>
+                    <p class="muted">{% blocktrans with date=account.as_of_date|date:"Y-m-d" %}Last valuation date is {{ date }}.{% endblocktrans %}</p>
+                </div>
+                <a class="button secondary" href="{% url 'planner:account_update' account.pk %}">{% trans "Update" %}</a>
+            </div>
+        {% endfor %}
+        {% for item in depot_warnings %}
+            <div class="issue-row warning">
+                <div>
+                    <span class="status-pill warning">{% trans "reconcile" %}</span>
+                    <h3>{% blocktrans with name=item.account.name %}{{ name }} differs from holdings{% endblocktrans %}</h3>
+                    <p class="muted">{% blocktrans with diff=item.difference|money:item.account.currency %}Holdings value differs from account balance by {{ diff }}.{% endblocktrans %}</p>
+                </div>
+                <a class="button secondary" href="{% url 'planner:account_detail' item.account.pk %}">{% trans "Review" %}</a>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Accounts" %}</h2>
+        {% if feature_flags.imports %}<a href="{% url 'planner:import_center' %}">{% trans "Import balances" %}</a>{% endif %}
+    </div>
+    {% if accounts %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Owner" %}</th>
+                    <th>{% trans "Institution" %}</th>
+                    <th>{% trans "Balance" %}</th>
+                    <th>{% trans "Effective" %}</th>
+                    <th>{% trans "As of" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in accounts %}
+                    <tr>
+                        <td><a href="{% url 'planner:account_detail' account.pk %}">{{ account.name }}</a></td>
+                        <td>{{ account.get_account_type_display }}</td>
+                        <td>
+                            {{ account.owner_label }}
+                            {% if not account.counts_in_household_net_worth %}
+                                <br><small class="status-pill info">{% trans "tracked only" %}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ account.institution|default:"-" }}</td>
+                        <td>{{ account.balance|money:account.currency }}</td>
+                        <td>{{ account.effective_balance|money:account.currency }}</td>
+                        <td>{{ account.as_of_date|date:"Y-m-d"|default:"-" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'planner:account_create' as create_url %}
+    {% url 'planner:account_setup' as wizard_url %}
+    {% trans "No accounts yet" as empty_title %}
+    {% trans "Add your cash, savings, depot and loan balances — projections start from these." as empty_message %}
+    {% trans "Add account" as add_account_label %}
+    {% trans "Account wizard" as wizard_label %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message action_url=create_url action_label=add_account_label secondary_url=wizard_url secondary_label=wizard_label %}
+    {% endif %}
+</section>
+{% endblock %}

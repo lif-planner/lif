@@ -1,0 +1,5 @@
+account_name,name,isin,ticker,asset_class,quantity,latest_price,currency,as_of_date,payout_date
+ING Depot,Vanguard FTSE All-World,IE00B3RBWM25,VGWL,ETF distributing,120.500000,118.42,EUR,2026-06-25,
+ING Depot,iShares Core MSCI World,IE00B4L5Y983,EUNL,ETF accumulating,80.000000,102.15,EUR,2026-06-25,
+ING Depot,Microsoft,US5949181045,MSFT,Stock,8.000000,445.10,USD,2026-06-25,
+ING Depot,German Government Bond 2031,IE0008UEVOE0,,Bond,20.000000,99.10,EUR,2026-06-25,2031-12-15

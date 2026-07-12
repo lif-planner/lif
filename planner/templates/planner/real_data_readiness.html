@@ -1,0 +1,125 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Real Data Readiness" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Readiness" as readiness_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=readiness_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Real data readiness" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Check whether the household foundation, imports, and safety steps are ready for private planning data." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:real_data_start' %}">{% trans "Real data start" %}</a>
+        <a class="button secondary" href="{% url 'planner:setup' %}">{% trans "Setup" %}</a>
+        {% if feature_flags.imports %}<a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Imports" %}</a>{% endif %}
+        <a class="button secondary" href="{% url 'planner:backup_center' %}">{% trans "Backups" %}</a>
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="readiness" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Data mode" %}</span>
+        <strong>{{ household.get_data_mode_display }}</strong>
+        <small>{% trans "Shown in the top bar on every page." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Readiness" %}</span>
+        <strong>{{ summary.percent }}%</strong>
+        <small>{% blocktrans with complete=summary.complete total=summary.total %}{{ complete }} of {{ total }} checks complete.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Critical quality" %}</span>
+        <strong>{{ quality_report.counts.critical }}</strong>
+        <small>{% blocktrans count count=quality_report.total %}{{ count }} total quality issue.{% plural %}{{ count }} total quality issues.{% endblocktrans %}</small>
+    </div>
+</section>
+
+{% if household.data_mode == "demo" %}
+<section class="issue-row warning">
+    <div>
+        <span class="status-pill warning">{% trans "demo" %}</span>
+        <h3>{% trans "This household is marked as demo data" %}</h3>
+        <p class="muted">{% trans "Use setup and imports to replace sample values, then mark the household as real data." %}</p>
+    </div>
+    <form method="post" class="inline-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mark_real">
+        <button class="button" type="submit">{% trans "Mark as real data" %}</button>
+    </form>
+</section>
+{% endif %}
+
+{% if summary.next_item %}
+<section class="issue-row warning">
+    <div>
+        <span class="status-pill warning">{% trans "next" %}</span>
+        <h3>{{ summary.next_item.label }}</h3>
+        <p class="muted">{{ summary.next_item.detail }}</p>
+    </div>
+    {% if summary.next_item.action_url %}
+        <a class="button secondary" href="{{ summary.next_item.action_url }}">{{ summary.next_item.action_label }}</a>
+    {% endif %}
+</section>
+{% else %}
+<section class="issue-row info">
+    <div>
+        <span class="status-pill ok">{% trans "ready" %}</span>
+        <h3>{% trans "Real-data foundation looks ready" %}</h3>
+        <p class="muted">{% trans "Keep reviewing quality warnings after each import or planning change." %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Open analytics" %}</a>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Before You Trust the Forecast" %}</h2>
+            <p class="muted">{% trans "Use this order after entering real data: reconcile inputs, verify the math, review assumptions, then compare scenarios." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for item in trust_items %}
+            <div class="metric">
+                <span>{{ forloop.counter }}. {{ item.label }}</span>
+                <strong class="{% if not item.complete %}negative{% endif %}">
+                    {% if item.complete %}{% trans "OK" %}{% else %}{% trans "Review" %}{% endif %}
+                </strong>
+                <small>{{ item.detail }}</small>
+                {% if item.action_url %}<small><a href="{{ item.action_url }}">{{ item.action_label }}</a></small>{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% for section in sections %}
+<section>
+    <div class="section-heading">
+        <h2>{{ section.title }}</h2>
+        <span class="muted">{% blocktrans with complete=section.complete total=section.total %}{{ complete }} / {{ total }} complete{% endblocktrans %}</span>
+    </div>
+    <div class="issue-list">
+        {% for item in section.items %}
+            <div class="issue-row {% if item.complete %}info{% else %}warning{% endif %}">
+                <div>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">
+                        {% if item.complete %}{% trans "done" %}{% else %}{% trans "todo" %}{% endif %}
+                    </span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

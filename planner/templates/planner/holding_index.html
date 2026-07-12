@@ -1,0 +1,77 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Depot Holdings" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Money" as section_label %}
+{% trans "Depot holdings" as holdings_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=holdings_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Money" %}</p>
+        <h1>{% trans "Depot holdings" %}</h1>
+        <p class="muted">{% trans "ETF, stock, and bond positions used to value depot accounts." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:depot_holding_create' %}">{% trans "Add holding" %}</a>
+        {% if feature_flags.imports %}
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:import_center' %}">{% trans "Import holdings" %}</a>
+            </div>
+        </details>
+        {% endif %}
+    </div>
+</section>
+
+<section>
+    {% if holdings %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Holding" %}</th>
+                    <th>{% trans "Depot" %}</th>
+                    <th>ISIN</th>
+                    <th>{% trans "Ticker" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Quantity" %}</th>
+                    <th>{% trans "Price" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Distribution" %}</th>
+                    <th>{% trans "Payout date" %}</th>
+                    <th>{% trans "Expected payout" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holding in holdings %}
+                    <tr>
+                        <td><a href="{% url 'planner:depot_holding_update' holding.pk %}">{{ holding.name }}</a></td>
+                        <td><a href="{% url 'planner:account_detail' holding.asset_account.pk %}">{{ holding.asset_account.name }}</a></td>
+                        <td>{{ holding.isin|default:"-" }}</td>
+                        <td>{{ holding.ticker|default:"-" }}</td>
+                        <td>{{ holding.asset_class }}</td>
+                        <td>{{ holding.quantity }}</td>
+                        <td>{{ holding.latest_price|money:holding.currency }}</td>
+                        <td>{{ holding.current_value|money:holding.currency }}</td>
+                        <td>{% if holding.annual_distribution_rate %}{{ holding.annual_distribution_rate }}% {{ holding.get_distribution_cadence_display|lower }}{% else %}-{% endif %}</td>
+                        <td>{{ holding.payout_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{% if holding.payout_amount %}{{ holding.payout_amount|money:holding.currency }}{% else %}-{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'planner:depot_holding_create' as create_url %}
+    {% if feature_flags.imports %}{% url 'planner:import_center' as import_url %}{% endif %}
+    {% trans "No depot holdings yet" as empty_title %}
+    {% trans "Add ETF, stock, or bond positions to value your depot accounts from holdings." as empty_message %}
+    {% trans "Add holding" as add_holding_label %}
+    {% trans "Import holdings" as import_holdings_label %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message action_url=create_url action_label=add_holding_label secondary_url=import_url secondary_label=import_holdings_label %}
+    {% endif %}
+</section>
+{% endblock %}

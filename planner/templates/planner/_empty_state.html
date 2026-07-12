@@ -1,0 +1,13 @@
+{% comment %}Guided empty state. Pass `title`, `message`, and an optional primary
+action (`action_url` + `action_label`) and secondary action (`secondary_url` +
+`secondary_label`).{% endcomment %}
+<div class="empty-state">
+    <h2>{{ title }}</h2>
+    <p class="muted">{{ message }}</p>
+    {% if action_url or secondary_url %}
+        <div class="empty-state-actions">
+            {% if action_url %}<a class="button" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+            {% if secondary_url %}<a class="button secondary" href="{{ secondary_url }}">{{ secondary_label }}</a>{% endif %}
+        </div>
+    {% endif %}
+</div>

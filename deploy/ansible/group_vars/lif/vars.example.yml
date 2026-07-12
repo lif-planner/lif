@@ -1,0 +1,57 @@
+# Copy this file to group_vars/lif/vars.yml and adjust it for your host.
+# Keep real secrets in group_vars/lif/vault.yml, encrypted with ansible-vault.
+
+lif_repo_url: git@github.com:lif-planner/lif.git
+lif_repo_version: main
+lif_app_dir: /opt/lif
+lif_app_user: "{{ ansible_user | default(ansible_env.USER) }}"
+lif_app_group: "{{ lif_app_user }}"
+
+# Ansible deployment publishes LiF on normal HTTP port 80 by default.
+lif_container_port: 80
+lif_django_allowed_hosts:
+  - 127.0.0.1
+  - localhost
+  - 192.0.2.20
+
+# Only needed if the app is reached through a reverse proxy or tunnel
+# (e.g. Cloudflare Tunnel) on a hostname of its own, such as
+# https://lif.example.com. Must include the scheme.
+lif_django_csrf_trusted_origins: []
+
+# Set true only when a trusted reverse proxy/tunnel terminates TLS in front
+# of this host and forwards X-Forwarded-Proto. Leave false for direct or
+# LAN-only access.
+lif_trust_proxy_ssl_header: false
+
+lif_require_login: true
+lif_django_debug: false
+
+# Free-text label shown next to the git commit in the sidebar footer. The
+# commit itself is captured automatically from the Ansible checkout, so this
+# only needs to identify the deployment (e.g. which host/method), not a version.
+lif_version_label: ansible-container
+
+# For a public-ish demo behind VPN/LAN, set lif_demo_deployment: true.
+# Demo login stays off unless lif_demo_require_login is true.
+lif_demo_deployment: false
+lif_demo_require_login: false
+lif_demo_username: demo
+lif_demo_email: demo@example.invalid
+
+# Create an app-level SQLite backup before replacing the running container.
+# The task is skipped automatically until docker-compose.yml exists.
+lif_create_predeploy_backup: true
+
+# Debian and Ubuntu expose Docker Compose under different package names.
+# The playbook tries these in order and then auto-detects the working command.
+lif_compose_package_candidates:
+  - docker-compose-plugin
+  - docker-compose-v2
+  - docker-compose
+
+# Optional feature flag overrides. Example:
+# lif_feature_flags:
+#   LIF_FEATURE_SNAPSHOTS: "1"
+#   LIF_FEATURE_MONEYMONEY_IMPORT: "0"
+lif_feature_flags: {}

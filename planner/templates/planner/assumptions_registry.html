@@ -1,0 +1,108 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Assumptions" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Forecast" %}</p>
+        <h1>{% trans "Assumptions" %}</h1>
+        <p class="muted">{% trans "A single read-only registry of the rates, taxes, growth rules, and planning knobs currently driving the forecast." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:household_settings' %}">{% trans "Household settings" %}</a>
+                <a href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+                {% if feature_flags.scenarios %}<a href="{% url 'planner:scenario_compare' %}">{% trans "Scenarios" %}</a>{% endif %}
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Tracked assumptions" %}</span>
+        <strong>{{ registry.assumption_count }}</strong>
+        <small>{% trans "Across household, tax, assets, debts, income, cash goals, and retirement." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Cash goal funding" %}</span>
+        <strong>{% if registry.fund_cash_goal_from_depot %}{% trans "Depot draw" %}{% else %}{% trans "Manual" %}{% endif %}</strong>
+        <small>{% trans "Whether cash-goal gaps are automatically modelled as depot withdrawals." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Reviewed" %}</span>
+        <strong>{{ registry.confidence_counts.reviewed }}</strong>
+        <small>{% trans "Explicitly configured assumptions." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Defaults" %}</span>
+        <strong class="{% if registry.confidence_counts.default %}negative{% endif %}">{{ registry.confidence_counts.default }}</strong>
+        <small>{% trans "Still using app defaults or flat assumptions." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Inherited" %}</span>
+        <strong>{{ registry.confidence_counts.inherited }}</strong>
+        <small>{% trans "Uses a household-level default." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Expired" %}</span>
+        <strong class="{% if registry.confidence_counts.expired %}negative{% endif %}">{{ registry.confidence_counts.expired }}</strong>
+        <small>{% blocktrans with days=registry.review_expiry_days %}Reviews older than {{ days }} days.{% endblocktrans %}</small>
+    </div>
+</section>
+
+{% for group in registry.groups %}
+<section>
+    <div class="section-heading">
+        <h2>{{ group.label }}</h2>
+        <span class="actions">
+            <span class="muted">{% blocktrans count count=group.rows|length %}{{ count }} item{% plural %}{{ count }} items{% endblocktrans %}</span>
+            <a class="button secondary" href="{% url 'planner:assumption_review_edit' %}?scope=group&amp;group_key={{ group.key }}">{% trans "Review group" %}</a>
+        </span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Assumption" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Confidence" %}</th>
+                    <th>{% trans "What it affects" %}</th>
+                    <th>{% trans "Source" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in group.rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><strong>{{ row.value }}</strong></td>
+                        <td>
+                            <span class="status-pill {{ row.confidence.class }}">{{ row.confidence.label }}</span><br>
+                            <small>{{ row.confidence.detail }}</small>
+                            {% if row.impact %}<br><small>{% trans "Impact" %}: {{ row.impact }}</small>{% endif %}
+                            {% if row.review %}
+                                <br><small>{% blocktrans with date=row.review.reviewed_at|date:"Y-m-d" %}Reviewed on {{ date }}{% endblocktrans %}{% if row.review.note %} · {{ row.review.note }}{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.detail }}</td>
+                        <td>
+                            {% if row.url %}<a href="{{ row.url }}">{% trans "Edit source" %}</a><br>{% endif %}
+                            <a href="{% url 'planner:assumption_review_edit' %}?review_key={{ row.review_key }}">{% trans "Review note" %}</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% empty %}
+<section class="empty-state">
+    <h3>{% trans "No assumptions yet" %}</h3>
+    <p>{% trans "Create household settings, accounts, debts, income, cash goals, and retirement plans to populate this registry." %}</p>
+</section>
+{% endfor %}
+{% endblock %}

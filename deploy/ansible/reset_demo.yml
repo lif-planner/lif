@@ -1,0 +1,57 @@
+---
+- name: Reset LiF demo deployment
+  hosts: lif
+  become: true
+
+  pre_tasks:
+    - name: Apply reset defaults
+      ansible.builtin.set_fact:
+        lif_app_dir: "{{ lif_app_dir | default('/opt/lif') }}"
+        lif_reset_confirm: "{{ lif_reset_confirm | default(false) }}"
+        lif_reset_expected_path: "{{ lif_reset_expected_path | default('/opt/lif') }}"
+
+    - name: Require explicit reset confirmation
+      ansible.builtin.assert:
+        that:
+          - lif_reset_confirm | bool
+        fail_msg: "Refusing to reset. Re-run with -e lif_reset_confirm=true."
+
+    - name: Refuse unexpected reset path
+      ansible.builtin.assert:
+        that:
+          - lif_app_dir == lif_reset_expected_path
+          - lif_app_dir | length > 5
+        fail_msg: "Refusing to remove unexpected lif_app_dir={{ lif_app_dir }}."
+
+  tasks:
+    - name: Check whether deployment directory exists
+      ansible.builtin.stat:
+        path: "{{ lif_app_dir }}"
+      register: lif_reset_dir
+
+    - name: Check whether docker-compose.yml exists
+      ansible.builtin.stat:
+        path: "{{ lif_app_dir }}/docker-compose.yml"
+      register: lif_reset_compose
+      when: lif_reset_dir.stat.exists
+
+    - name: Stop and remove LiF Compose stack
+      ansible.builtin.command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ lif_app_dir }}"
+      register: lif_reset_compose_down
+      changed_when: "'Removing' in lif_reset_compose_down.stdout or 'Stopping' in lif_reset_compose_down.stdout or 'Network' in lif_reset_compose_down.stdout"
+      failed_when: false
+      when:
+        - lif_reset_dir.stat.exists
+        - lif_reset_compose.stat.exists
+
+    - name: Remove LiF deployment directory and demo data
+      ansible.builtin.file:
+        path: "{{ lif_app_dir }}"
+        state: absent
+      when: lif_reset_dir.stat.exists
+
+    - name: Show reset result
+      ansible.builtin.debug:
+        msg: "Removed {{ lif_app_dir }}. Run deploy_ansible.sh to recreate a fresh demo deployment."

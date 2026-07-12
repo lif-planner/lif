@@ -1,0 +1,177 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "System" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "on" as on_label %}
+{% trans "off" as off_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "System" %}</p>
+        <h1>LiF {{ app_version }}</h1>
+        <p class="muted">{% trans "Health, deployment, backup, and feature flag status for this checkout." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="/health/">{% trans "Health JSON" %}</a>
+        <a class="button secondary" href="{% url 'planner:backup_center' %}">{% trans "Backups" %}</a>
+        <a class="button secondary" href="/admin/planner/featureflag/">{% trans "Feature Flags" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Commit" %}</span>
+        <strong>{{ git_commit }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Debug" %}</span>
+        <strong class="{% if debug %}negative{% endif %}">{% if debug %}{% trans "On" %}{% else %}{% trans "Off" %}{% endif %}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Backups" %}</span>
+        <strong>{{ backup_count }}</strong>
+        <small>{% if latest_backup_mtime %}{% blocktrans with date=latest_backup_mtime|date:"Y-m-d H:i" %}Latest {{ date }}{% endblocktrans %}{% else %}{% trans "No backup found" %}{% endif %}</small>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Health" %}</h2>
+        </div>
+        <div class="list">
+            <div class="list-row">
+                <span>{% trans "Database" %}</span>
+                <small><span class="status-pill {% if database_ok %}ok{% else %}critical{% endif %}">{% if database_ok %}{% trans "ok" %}{% else %}{% trans "failed" %}{% endif %}</span></small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Migrations" %}</span>
+                <small><span class="status-pill {% if migrations_ok %}ok{% else %}critical{% endif %}">{% if migrations_ok %}{% trans "current" %}{% else %}{% trans "pending" %}{% endif %}</span></small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Static files" %}</span>
+                <small><span class="status-pill {% if staticfiles_ok %}ok{% else %}critical{% endif %}">{% if staticfiles_ok %}{% trans "found" %}{% else %}{% trans "missing" %}{% endif %}</span></small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Backup directory" %}</span>
+                <small><span class="status-pill {% if backup_dir_exists %}ok{% else %}warning{% endif %}">{% if backup_dir_exists %}{% trans "found" %}{% else %}{% trans "missing" %}{% endif %}</span></small>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Warnings" %}</h2>
+        </div>
+        <div class="list">
+            {% for warning in warnings %}
+                <div class="list-row">
+                    <span>{{ warning }}</span>
+                    <small><span class="status-pill warning">{% trans "warning" %}</span></small>
+                </div>
+            {% empty %}
+                <div class="list-row">
+                    <span>{% trans "No production warnings" %}</span>
+                    <small><span class="status-pill ok">{% trans "ok" %}</span></small>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Real Data Readiness" %}</h2>
+        <span class="status-pill {% if real_data_readiness.is_ready %}ok{% else %}warning{% endif %}">
+            {{ real_data_readiness.complete_count }}/{{ real_data_readiness.total_count }}
+        </span>
+    </div>
+    {% if real_data_readiness.next_item %}
+        <div class="empty-state readiness-next">
+            <h3>{% blocktrans with label=real_data_readiness.next_item.label %}Next: {{ label }}{% endblocktrans %}</h3>
+            <p class="muted">{{ real_data_readiness.next_item.detail }}</p>
+            {% if real_data_readiness.next_item.action_url %}
+                <a class="button secondary" href="{{ real_data_readiness.next_item.action_url }}">{{ real_data_readiness.next_item.action_label }}</a>
+            {% endif %}
+        </div>
+    {% endif %}
+    <div class="list readiness-list">
+        {% for item in real_data_readiness.items %}
+            <div class="list-row">
+                <span>
+                    <strong>{{ item.label }}</strong><br>
+                    <small>{{ item.detail }}</small>
+                </span>
+                <small>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">
+                        {% if item.complete %}{% trans "ready" %}{% else %}{% trans "open" %}{% endif %}
+                    </span>
+                    {% if item.action_url %}
+                        <a href="{{ item.action_url }}">{{ item.action_label }}</a>
+                    {% endif %}
+                </small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Deployment" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                <tr>
+                    <th>{% trans "Allowed hosts" %}</th>
+                    <td>{{ allowed_hosts|join:", " }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Login required" %}</th>
+                    <td>{% if require_login %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Backup directory" %}</th>
+                    <td>{{ backup_dir }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Latest backup" %}</th>
+                    <td>{% if latest_backup %}{{ latest_backup.name }}{% else %}-{% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Feature Flags" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Flag" %}</th>
+                    <th>{% trans "Effective" %}</th>
+                    <th>{% trans "Default" %}</th>
+                    <th>{% trans "Env override" %}</th>
+                    <th>{% trans "Configured" %}</th>
+                    <th>{% trans "Description" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flag in feature_flag_rows %}
+                    <tr>
+                        <td>{{ flag.key }}</td>
+                        <td><span class="status-pill {% if flag.enabled %}ok{% else %}off{% endif %}">{% if flag.enabled %}{{ on_label }}{% else %}{{ off_label }}{% endif %}</span></td>
+                        <td>{% if flag.default %}{{ on_label }}{% else %}{{ off_label }}{% endif %}</td>
+                        <td>{% if flag.environment_override is None %}-{% else %}{% if flag.environment_override %}{{ on_label }}{% else %}{{ off_label }}{% endif %}{% endif %}</td>
+                        <td>{% if flag.configured %}{% trans "yes" %}{% else %}{% trans "no" %}{% endif %}</td>
+                        <td>{{ flag.description }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

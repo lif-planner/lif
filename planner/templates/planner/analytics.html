@@ -1,0 +1,884 @@
+{% extends "planner/base.html" %}
+{% load i18n static %}
+{% load planner_extras %}
+
+{% block title %}{% trans "Analytics" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{{ analytics_data|json_script:"analytics-data" }}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Projection analytics" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Interactive projection graphs with adjustable range and granularity." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+        <a class="button secondary" href="{% url 'planner:household_settings' %}">{% trans "Settings" %}</a>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Sequence Risk" %}</h2>
+            {% if sequence_risk %}
+                <p class="muted">{% blocktrans with volatility=sequence_risk.annual_volatility %}Deterministic Monte Carlo-style return paths using the configured depot return as the mean and {{ volatility }}% annual volatility.{% endblocktrans %}</p>
+            {% else %}
+                <p class="muted">{% trans "Run this heavier stress check only when you need it. The normal charts load without calculating 100 alternate return paths." %}</p>
+            {% endif %}
+        </div>
+        {% if sequence_risk %}
+            <span class="status-pill info">{% blocktrans with count=sequence_risk.path_count %}{{ count }} paths{% endblocktrans %}</span>
+        {% else %}
+            <a class="button secondary" href="{% url 'planner:analytics' %}?sequence_risk=1">{% trans "Run sequence risk" %}</a>
+        {% endif %}
+    </div>
+    {% if sequence_risk %}
+        <div class="metric-grid">
+            <div class="metric">
+                <span>{% trans "Success probability" %}</span>
+                <strong>{{ sequence_risk.success_probability }}%</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Median ending net worth" %}</span>
+                <strong>{{ sequence_risk.ending_net_worth.p50|money:household.currency }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Bad-case ending net worth" %}</span>
+                <strong>{{ sequence_risk.ending_net_worth.p10|money:household.currency }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Best-case ending net worth" %}</span>
+                <strong>{{ sequence_risk.ending_net_worth.p90|money:household.currency }}</strong>
+            </div>
+        </div>
+        <p class="muted">{% trans "This is a planning stress lens, not a guarantee: it samples return order and does not predict markets." %}</p>
+    {% endif %}
+</section>
+
+<section class="analytics-toolbar" data-default-granularity="{{ default_granularity }}">
+    <div>
+        <span>{% trans "Range" %}</span>
+        <div class="segmented" data-control="range">
+            <button type="button" data-range="12">12M</button>
+            <button type="button" data-range="36">36M</button>
+            <button type="button" data-range="120">10Y</button>
+            <button type="button" data-range="retirement">{% trans "Retirement" %}</button>
+            <button type="button" data-range="all">{% trans "All" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Granularity" %}</span>
+        <div class="segmented" data-control="granularity">
+            <button type="button" data-granularity="monthly">{% trans "Monthly" %}</button>
+            <button type="button" data-granularity="yearly">{% trans "Yearly" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Money" %}</span>
+        <div class="segmented" data-control="display-mode">
+            <button type="button" data-display-mode="nominal">{% trans "Nominal" %}</button>
+            <button type="button" data-display-mode="real">{% trans "Today's money" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Series" %}</span>
+        <div class="series-toggles">
+            <label><input type="checkbox" data-series="liquidBalance" checked> {% trans "Liquid" %}</label>
+            <label><input type="checkbox" data-series="netWorth" checked> {% trans "Net worth" %}</label>
+            <label><input type="checkbox" data-series="depotValue" checked> {% trans "Depot" %}</label>
+            <label><input type="checkbox" data-series="liabilityBalance" checked> {% trans "Debts / liabilities" %}</label>
+        </div>
+    </div>
+</section>
+
+<section class="analytics-grid">
+    <div class="chart-panel">
+        <div class="section-heading">
+            <h2>{% trans "Balances" %}</h2>
+            <span class="muted" id="balance-range-label"></span>
+        </div>
+        <div class="chart-shell">
+            <div id="balance-chart" class="analytics-chart" role="img" aria-label="{% trans 'Balance projection chart' %}"></div>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="button secondary chart-reset" data-reset-chart="balance">{% trans "Reset zoom" %}</button>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <div class="section-heading">
+            <h2>{% trans "Cash Flow" %}</h2>
+            <span class="muted" id="flow-range-label"></span>
+        </div>
+        <div class="chart-shell">
+            <div id="flow-chart" class="analytics-chart" role="img" aria-label="{% trans 'Cash flow projection chart' %}"></div>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="button secondary chart-reset" data-reset-chart="flow">{% trans "Reset zoom" %}</button>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <div class="section-heading">
+            <h2>{% trans "Cash Goal" %}</h2>
+            <span class="muted" id="goal-range-label"></span>
+        </div>
+        <div class="chart-legend">
+            <span><i class="legend-swatch income"></i>{% trans "Income" %}</span>
+            <span><i class="legend-swatch goal"></i>{% trans "Goal" %}</span>
+            <span><i class="legend-swatch gap"></i>{% trans "ETF draw need" %}</span>
+        </div>
+        <div class="chart-shell">
+            <div id="goal-chart" class="analytics-chart" role="img" aria-label="{% trans 'Cash goal and ETF draw need chart' %}"></div>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="button secondary chart-reset" data-reset-chart="goal">{% trans "Reset zoom" %}</button>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <div class="section-heading">
+            <h2>{% trans "Retirement Cashflow" %}</h2>
+            <span class="muted" id="retirement-cashflow-range-label"></span>
+        </div>
+        <div class="chart-legend">
+            <span><i class="legend-swatch goal"></i>{% trans "Cash goal" %}</span>
+            <span><i class="legend-swatch income"></i>{% trans "Gross income" %}</span>
+            <span><i class="legend-swatch net"></i>{% trans "Estimated net income" %}</span>
+            <span><i class="legend-swatch gap"></i>{% trans "Tax-aware draw" %}</span>
+        </div>
+        <div class="chart-shell">
+            <div id="retirement-cashflow-chart" class="analytics-chart" role="img" aria-label="{% trans 'Tax-aware retirement cashflow chart' %}"></div>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="button secondary chart-reset" data-reset-chart="retirementCashflow">{% trans "Reset zoom" %}</button>
+        </div>
+    </div>
+    <div class="chart-panel">
+        <div class="section-heading">
+            <h2>{% trans "Draw Risk" %}</h2>
+            <span class="muted" id="draw-risk-range-label"></span>
+        </div>
+        <div class="chart-shell">
+            <div id="draw-risk-chart" class="analytics-chart" role="img" aria-label="{% trans 'ETF draw risk chart' %}"></div>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="button secondary chart-reset" data-reset-chart="drawRisk">{% trans "Reset zoom" %}</button>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Timeline Markers" %}</h2>
+        <span class="muted" id="milestone-count"></span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Period" %}</th>
+                    <th>{% trans "Category" %}</th>
+                    <th>{% trans "Milestone" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody id="milestone-table-body"></tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Visible Data" %}</h2>
+        <span class="muted" id="visible-count"></span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Period" %}</th>
+                    <th>{% trans "Liquid" %}</th>
+                    <th>{% trans "Net worth" %}</th>
+                    <th>{% trans "Depot" %}</th>
+                    <th>{% trans "Debts / liabilities" %}</th>
+                    <th>{% trans "Income" %}</th>
+                    <th>{% trans "Income rules" %}</th>
+                    <th>{% trans "Asset payouts" %}</th>
+                    <th>{% trans "Savings interest" %}</th>
+                    <th>{% trans "Depot income" %}</th>
+                    <th>{% trans "Depot draw" %}</th>
+                    <th>{% trans "Expenses" %}</th>
+                    <th>{% trans "Transfers" %}</th>
+                    <th>{% trans "Cash net" %}</th>
+                    <th>{% trans "Cash goal" %}</th>
+                    <th>{% trans "ETF draw need" %}</th>
+                    <th>{% trans "ETF draw %" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody id="analytics-table-body"></tbody>
+        </table>
+    </div>
+</section>
+
+<script src="{% static 'vendor/echarts.min.js' %}"></script>
+<script>
+(function () {
+    const rawData = JSON.parse(document.getElementById("analytics-data").textContent);
+    const privacyMode = {{ privacy_mode_enabled|yesno:"true,false" }};
+    const maskedMoney = "••••• {{ household.currency }}";
+    const toolbar = document.querySelector(".analytics-toolbar");
+    const defaultGranularity = toolbar.dataset.defaultGranularity === "yearly" ? "yearly" : "monthly";
+    const state = {
+        granularity: defaultGranularity,
+        range: defaultGranularity === "yearly" ? "all" : "36",
+        displayMode: "nominal",
+        series: new Set(["liquidBalance", "netWorth", "depotValue", "liabilityBalance"]),
+    };
+
+    const colors = {
+        liquidBalance: "#246b55",
+        netWorth: "#234b7a",
+        depotValue: "#7a5c1f",
+        liabilityBalance: "#b3261e",
+        income: "#246b55",
+        depotPayout: "#2f6f8f",
+        expenses: "#b3261e",
+        transfers: "#7a5c1f",
+        cashNet: "#234b7a",
+        annualCashGoal: "#5f6c72",
+        cashGoalGap: "#b3261e",
+        netIncome: "#2f6f8f",
+        taxAwareDrawNeed: "#8f3d63",
+        portfolioDrawPercent: "#7a5c1f",
+        taxAwareDrawPercent: "#b3261e",
+        drawRiskLimit: "#5f6c72",
+    };
+    const labels = {
+        liquidBalance: "{% trans 'Liquid' %}",
+        netWorth: "{% trans 'Net worth' %}",
+        depotValue: "{% trans 'Depot' %}",
+        liabilityBalance: "{% trans 'Debts / liabilities' %}",
+        income: "{% trans 'Income' %}",
+        depotPayout: "{% trans 'Asset payouts' %}",
+        expenses: "{% trans 'Expenses' %}",
+        transfers: "{% trans 'Transfers' %}",
+        cashNet: "{% trans 'Cash net' %}",
+        annualCashGoal: "{% trans 'Cash goal' %}",
+        cashGoalGap: "{% trans 'ETF draw need' %}",
+        netIncome: "{% trans 'Estimated net income' %}",
+        taxAwareDrawNeed: "{% trans 'Tax-aware draw' %}",
+        portfolioDrawPercent: "{% trans 'Gross draw %' %}",
+        taxAwareDrawPercent: "{% trans 'Tax-aware draw %' %}",
+        drawRiskLimit: "{% trans '4% guide' %}",
+    };
+    const jsText = {
+        to: "{% trans 'to' %}",
+        open: "{% trans 'Open' %}",
+        period: "{% trans 'period' %}",
+        periods: "{% trans 'periods' %}",
+        marker: "{% trans 'marker' %}",
+        markers: "{% trans 'markers' %}",
+        event: "{% trans 'event' %}",
+        events: "{% trans 'events' %}",
+        noMilestones: "{% trans 'No milestones in the selected range.' %}",
+        coverage: "{% trans 'Coverage' %}",
+        etfDraw: "{% trans 'ETF draw' %}",
+        grossIncome: "{% trans 'Gross income' %}",
+        estimatedTaxDrag: "{% trans 'Estimated tax drag' %}",
+        grossDraw: "{% trans 'Gross draw' %}",
+        taxAwareDraw: "{% trans 'Tax-aware draw' %}",
+        taxAwareDrawNeed: "{% trans 'Tax-aware draw need' %}",
+    };
+    const chartText = {
+        color: "#64706b",
+        fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    };
+    const charts = {
+        balance: echarts.init(document.getElementById("balance-chart"), null, { renderer: "canvas" }),
+        flow: echarts.init(document.getElementById("flow-chart"), null, { renderer: "canvas" }),
+        goal: echarts.init(document.getElementById("goal-chart"), null, { renderer: "canvas" }),
+        retirementCashflow: echarts.init(document.getElementById("retirement-cashflow-chart"), null, { renderer: "canvas" }),
+        drawRisk: echarts.init(document.getElementById("draw-risk-chart"), null, { renderer: "canvas" }),
+    };
+
+    function numberValue(value) {
+        return Number.parseFloat(value) || 0;
+    }
+
+    function formatMoney(value) {
+        if (privacyMode) {
+            return maskedMoney;
+        }
+        return new Intl.NumberFormat("en", {
+            style: "currency",
+            currency: "{{ household.currency }}",
+            maximumFractionDigits: 0,
+        }).format(numberValue(value));
+    }
+
+    function formatPercent(value) {
+        return `${numberValue(value).toFixed(2)}%`;
+    }
+
+    function fieldKey(key) {
+        return state.displayMode === "real" ? `${key}Real` : key;
+    }
+
+    function pointValue(point, key) {
+        return point[fieldKey(key)] ?? point[key];
+    }
+
+    function activeData() {
+        const data = rawData[state.granularity] || [];
+        return rangedData(data, state.granularity);
+    }
+
+    function activeGoalData() {
+        return rangedData(rawData.yearly || [], "yearly");
+    }
+
+    function retirementChartData() {
+        const data = activeGoalData();
+        if (state.range === "retirement") {
+            return data;
+        }
+        const firstRetirementIndex = data.findIndex((point) => numberValue(point.retirementIncome) > 0);
+        return firstRetirementIndex >= 0 ? data.slice(firstRetirementIndex) : data;
+    }
+
+    function activeMilestones(data, granularity) {
+        const selectedGranularity = granularity || state.granularity;
+        const visibleLabels = new Set(data.map((point) => point.label));
+        const milestones = (rawData.milestones && rawData.milestones[selectedGranularity]) || [];
+        return milestones.filter((item) => visibleLabels.has(selectedGranularity === "yearly" ? item.year : item.month));
+    }
+
+    function rangedData(data, granularity) {
+        if (state.range === "all") {
+            return data;
+        }
+        if (state.range === "retirement") {
+            const index = data.findIndex((point) => numberValue(point.retirementIncome) > 0);
+            return index >= 0 ? data.slice(index) : data;
+        }
+        const requested = Number(state.range);
+        if (!Number.isFinite(requested)) {
+            return data;
+        }
+        const count = granularity === "yearly" ? Math.ceil(requested / 12) : requested;
+        return data.slice(0, count);
+    }
+
+    function chartBase(data) {
+        return {
+            animationDuration: 350,
+            backgroundColor: "transparent",
+            color: Object.values(colors),
+            grid: {
+                left: 78,
+                right: 34,
+                top: 44,
+                bottom: 76,
+            },
+            textStyle: chartText,
+            tooltip: {
+                trigger: "axis",
+                renderMode: "richText",
+                confine: true,
+                valueFormatter: formatMoney,
+                axisPointer: {
+                    type: "cross",
+                    label: {
+                        formatter(params) {
+                            return params.axisDimension === "y" ? formatMoney(params.value) : params.value;
+                        },
+                    },
+                },
+            },
+            legend: {
+                top: 4,
+                type: "scroll",
+                textStyle: chartText,
+            },
+            xAxis: {
+                type: "category",
+                boundaryGap: false,
+                data: data.map((point) => point.label),
+                axisLabel: {
+                    hideOverlap: true,
+                    color: chartText.color,
+                },
+                axisLine: {
+                    lineStyle: { color: "#cbd8d1" },
+                },
+                axisTick: {
+                    alignWithLabel: true,
+                },
+            },
+            yAxis: {
+                type: "value",
+                scale: true,
+                axisLabel: {
+                    color: chartText.color,
+                    formatter: formatMoney,
+                },
+                splitLine: {
+                    lineStyle: { color: "#edf2ef" },
+                },
+            },
+            dataZoom: [
+                {
+                    type: "inside",
+                    throttle: 60,
+                },
+                {
+                    type: "slider",
+                    bottom: 22,
+                    height: 24,
+                    brushSelect: true,
+                    borderColor: "#dbe4df",
+                    fillerColor: "rgba(36, 107, 85, .14)",
+                    handleStyle: {
+                        color: "#246b55",
+                    },
+                    moveHandleStyle: {
+                        color: "#174a3b",
+                    },
+                    textStyle: chartText,
+                },
+            ],
+        };
+    }
+
+    function milestoneMarkLine(data, granularity) {
+        const selectedGranularity = granularity || state.granularity;
+        const markers = activeMilestones(data, selectedGranularity);
+        const byPeriod = new Map();
+        markers.forEach((item) => {
+            const period = selectedGranularity === "yearly" ? item.year : item.month;
+            if (!byPeriod.has(period)) {
+                byPeriod.set(period, []);
+            }
+            byPeriod.get(period).push(item);
+        });
+        return {
+            silent: false,
+            symbol: ["none", "none"],
+            label: {
+                formatter(params) {
+                    return params.name;
+                },
+                color: chartText.color,
+                fontSize: 11,
+            },
+            lineStyle: {
+                color: "#8f9b96",
+                type: "dashed",
+                width: 1,
+            },
+            data: Array.from(byPeriod.entries()).map(([period, items]) => ({
+                xAxis: period,
+                name: items.length > 1 ? `${items.length} ${jsText.events}` : items[0].category,
+            })),
+        };
+    }
+
+    function drawBalanceChart(data, seriesKeys) {
+        const option = chartBase(data);
+        option.series = seriesKeys.map((key) => ({
+            name: labels[key],
+            type: "line",
+            smooth: true,
+            symbol: "circle",
+            symbolSize: 5,
+            showSymbol: false,
+            emphasis: {
+                focus: "series",
+            },
+            lineStyle: {
+                width: 3,
+                color: colors[key],
+            },
+            itemStyle: {
+                color: colors[key],
+            },
+            areaStyle: key === "liquidBalance" ? {
+                color: "rgba(36, 107, 85, .08)",
+            } : undefined,
+            data: data.map((point) => numberValue(pointValue(point, key))),
+        }));
+        if (option.series.length) {
+            option.series[0].markLine = milestoneMarkLine(data, state.granularity);
+        }
+        charts.balance.setOption(option, true);
+    }
+
+    function drawFlowChart(data) {
+        const option = chartBase(data);
+        option.xAxis.boundaryGap = true;
+        option.tooltip.axisPointer.type = "shadow";
+        option.series = [
+            {
+                name: labels.income,
+                type: "bar",
+                stack: "cash",
+                itemStyle: { color: colors.income },
+                data: data.map((point) => numberValue(pointValue(point, "income"))),
+            },
+            {
+                name: labels.depotPayout,
+                type: "bar",
+                stack: "cash",
+                itemStyle: { color: colors.depotPayout },
+                data: data.map((point) => numberValue(pointValue(point, "depotPayout"))),
+            },
+            {
+                name: labels.expenses,
+                type: "bar",
+                stack: "cash",
+                itemStyle: { color: colors.expenses },
+                data: data.map((point) => -Math.abs(numberValue(pointValue(point, "expenses")))),
+            },
+            {
+                name: labels.transfers,
+                type: "bar",
+                itemStyle: { color: colors.transfers },
+                data: data.map((point) => numberValue(pointValue(point, "transfers"))),
+            },
+            {
+                name: labels.cashNet,
+                type: "line",
+                smooth: true,
+                symbolSize: 5,
+                lineStyle: { width: 3, color: colors.cashNet },
+                itemStyle: { color: colors.cashNet },
+                data: data.map((point) => numberValue(pointValue(point, "cashNet"))),
+            },
+        ];
+        option.series[0].markLine = milestoneMarkLine(data, state.granularity);
+        charts.flow.setOption(option, true);
+    }
+
+    function drawGoalChart(data) {
+        const option = chartBase(data);
+        option.xAxis.boundaryGap = true;
+        option.tooltip.formatter = function (params) {
+            const index = params[0] ? params[0].dataIndex : 0;
+            const point = data[index] || {};
+            return [
+                point.label,
+                `${labels.income}: ${formatMoney(pointValue(point, "income"))}`,
+                `${labels.annualCashGoal}: ${formatMoney(pointValue(point, "annualCashGoal"))}`,
+                `${labels.cashGoalGap}: ${formatMoney(pointValue(point, "cashGoalGap"))}`,
+                `${jsText.coverage}: ${formatPercent(point.cashGoalCoveragePercent)}`,
+                `${jsText.etfDraw}: ${formatPercent(point.portfolioDrawPercent)}`,
+            ].join("\n");
+        };
+        option.series = [
+            {
+                name: labels.income,
+                type: "bar",
+                itemStyle: { color: colors.income },
+                data: data.map((point) => numberValue(pointValue(point, "income"))),
+            },
+            {
+                name: labels.cashGoalGap,
+                type: "bar",
+                itemStyle: { color: colors.cashGoalGap },
+                data: data.map((point) => numberValue(pointValue(point, "cashGoalGap"))),
+            },
+            {
+                name: labels.annualCashGoal,
+                type: "line",
+                smooth: true,
+                symbolSize: 5,
+                lineStyle: {
+                    width: 3,
+                    type: "dashed",
+                    color: colors.annualCashGoal,
+                },
+                itemStyle: { color: colors.annualCashGoal },
+                data: data.map((point) => numberValue(pointValue(point, "annualCashGoal"))),
+            },
+        ];
+        option.series[0].markLine = milestoneMarkLine(data, "yearly");
+        charts.goal.setOption(option, true);
+    }
+
+    function drawRetirementCashflowChart(data) {
+        const option = chartBase(data);
+        option.xAxis.boundaryGap = true;
+        option.tooltip.formatter = function (params) {
+            const index = params[0] ? params[0].dataIndex : 0;
+            const point = data[index] || {};
+            return [
+                point.label,
+                `${labels.annualCashGoal}: ${formatMoney(pointValue(point, "annualCashGoal"))}`,
+                `${jsText.grossIncome}: ${formatMoney(pointValue(point, "income"))}`,
+                `${labels.netIncome}: ${formatMoney(pointValue(point, "netIncome"))}`,
+                `${jsText.taxAwareDraw}: ${formatMoney(pointValue(point, "taxAwareDrawNeed"))}`,
+                `${jsText.estimatedTaxDrag}: ${formatMoney(pointValue(point, "capitalTaxDrag"))}`,
+            ].join("\n");
+        };
+        option.series = [
+            {
+                name: labels.income,
+                type: "bar",
+                itemStyle: { color: colors.income },
+                data: data.map((point) => numberValue(pointValue(point, "income"))),
+            },
+            {
+                name: labels.netIncome,
+                type: "bar",
+                itemStyle: { color: colors.netIncome },
+                data: data.map((point) => numberValue(pointValue(point, "netIncome"))),
+            },
+            {
+                name: labels.taxAwareDrawNeed,
+                type: "bar",
+                itemStyle: { color: colors.taxAwareDrawNeed },
+                data: data.map((point) => numberValue(pointValue(point, "taxAwareDrawNeed"))),
+            },
+            {
+                name: labels.annualCashGoal,
+                type: "line",
+                smooth: true,
+                symbolSize: 5,
+                lineStyle: {
+                    width: 3,
+                    type: "dashed",
+                    color: colors.annualCashGoal,
+                },
+                itemStyle: { color: colors.annualCashGoal },
+                data: data.map((point) => numberValue(pointValue(point, "annualCashGoal"))),
+            },
+        ];
+        option.series[0].markLine = milestoneMarkLine(data, "yearly");
+        charts.retirementCashflow.setOption(option, true);
+    }
+
+    function drawRiskChart(data) {
+        const option = chartBase(data);
+        option.tooltip.valueFormatter = formatPercent;
+        option.tooltip.formatter = function (params) {
+            const index = params[0] ? params[0].dataIndex : 0;
+            const point = data[index] || {};
+            return [
+                point.label,
+                `${jsText.grossDraw}: ${formatPercent(point.portfolioDrawPercent)}`,
+                `${jsText.taxAwareDraw}: ${formatPercent(point.taxAwareDrawPercent)}`,
+                `${jsText.taxAwareDrawNeed}: ${formatMoney(pointValue(point, "taxAwareDrawNeed"))}`,
+            ].join("\n");
+        };
+        option.yAxis.axisLabel.formatter = formatPercent;
+        option.yAxis.scale = false;
+        option.series = [
+            {
+                name: labels.portfolioDrawPercent,
+                type: "line",
+                smooth: true,
+                symbolSize: 5,
+                lineStyle: { width: 3, color: colors.portfolioDrawPercent },
+                itemStyle: { color: colors.portfolioDrawPercent },
+                data: data.map((point) => numberValue(point.portfolioDrawPercent)),
+            },
+            {
+                name: labels.taxAwareDrawPercent,
+                type: "line",
+                smooth: true,
+                symbolSize: 5,
+                lineStyle: { width: 3, color: colors.taxAwareDrawPercent },
+                itemStyle: { color: colors.taxAwareDrawPercent },
+                data: data.map((point) => numberValue(point.taxAwareDrawPercent)),
+            },
+            {
+                name: labels.drawRiskLimit,
+                type: "line",
+                symbol: "none",
+                lineStyle: {
+                    width: 2,
+                    type: "dashed",
+                    color: colors.drawRiskLimit,
+                },
+                itemStyle: { color: colors.drawRiskLimit },
+                data: data.map(() => 4),
+            },
+        ];
+        option.series[0].markLine = milestoneMarkLine(data, "yearly");
+        charts.drawRisk.setOption(option, true);
+    }
+
+    function renderTable(data) {
+        const body = document.getElementById("analytics-table-body");
+        body.replaceChildren();
+        data.forEach((point) => {
+            const row = document.createElement("tr");
+            [
+                point.label,
+                formatMoney(pointValue(point, "liquidBalance")),
+                formatMoney(pointValue(point, "netWorth")),
+                formatMoney(pointValue(point, "depotValue")),
+                formatMoney(pointValue(point, "liabilityBalance")),
+                formatMoney(pointValue(point, "income")),
+                formatMoney(pointValue(point, "incomeRuleIncome")),
+                formatMoney(pointValue(point, "depotPayout")),
+                formatMoney(pointValue(point, "savingsInterestIncome")),
+                formatMoney(pointValue(point, "depotIncome")),
+                formatMoney(pointValue(point, "depotDraw")),
+                formatMoney(pointValue(point, "expenses")),
+                formatMoney(pointValue(point, "transfers")),
+                formatMoney(pointValue(point, "cashNet")),
+                formatMoney(pointValue(point, "annualCashGoal")),
+                formatMoney(pointValue(point, "cashGoalGap")),
+                `${numberValue(point.portfolioDrawPercent).toFixed(2)}%`,
+            ].forEach((value, index) => {
+                const cell = document.createElement("td");
+                cell.textContent = value;
+                if (index === 4 && numberValue(pointValue(point, "liabilityBalance")) > 0) {
+                    cell.classList.add("negative");
+                }
+                if (index === 13 && numberValue(pointValue(point, "cashNet")) < 0) {
+                    cell.classList.add("negative");
+                }
+                if (index === 15 && numberValue(pointValue(point, "cashGoalGap")) > 0) {
+                    cell.classList.add("negative");
+                }
+                row.appendChild(cell);
+            });
+            const detailCell = document.createElement("td");
+            if (point.detailUrl) {
+                const link = document.createElement("a");
+                link.href = point.detailUrl;
+                link.textContent = jsText.open;
+                detailCell.appendChild(link);
+            } else {
+                detailCell.textContent = "-";
+            }
+            row.appendChild(detailCell);
+            body.appendChild(row);
+        });
+        document.getElementById("visible-count").textContent = `${data.length} ${data.length === 1 ? jsText.period : jsText.periods}`;
+    }
+
+    function renderMilestones(data) {
+        const body = document.getElementById("milestone-table-body");
+        const milestones = activeMilestones(data, state.granularity);
+        body.replaceChildren();
+        milestones.forEach((item) => {
+            const row = document.createElement("tr");
+            const period = document.createElement("td");
+            period.textContent = state.granularity === "yearly" ? item.year : item.month;
+            row.appendChild(period);
+
+            const category = document.createElement("td");
+            category.textContent = item.category;
+            row.appendChild(category);
+
+            const label = document.createElement("td");
+            if (item.url) {
+                const link = document.createElement("a");
+                link.href = item.url;
+                link.textContent = item.label;
+                label.appendChild(link);
+            } else {
+                label.textContent = item.label;
+            }
+            row.appendChild(label);
+
+            const detail = document.createElement("td");
+            detail.textContent = item.detail || "-";
+            row.appendChild(detail);
+            body.appendChild(row);
+        });
+        if (!milestones.length) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.colSpan = 4;
+            cell.textContent = jsText.noMilestones;
+            row.appendChild(cell);
+            body.appendChild(row);
+        }
+        document.getElementById("milestone-count").textContent = `${milestones.length} ${milestones.length === 1 ? jsText.marker : jsText.markers}`;
+    }
+
+    function updateControls() {
+        document.querySelectorAll("[data-range]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.range === state.range);
+        });
+        document.querySelectorAll("[data-granularity]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.granularity === state.granularity);
+        });
+        document.querySelectorAll("[data-display-mode]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.displayMode === state.displayMode);
+        });
+        document.querySelectorAll("[data-series]").forEach((checkbox) => {
+            checkbox.checked = state.series.has(checkbox.dataset.series);
+        });
+    }
+
+    function render() {
+        updateControls();
+        const data = activeData();
+        const goalData = activeGoalData();
+        const retirementData = retirementChartData();
+        const seriesKeys = Array.from(state.series);
+        const modeLabel = state.displayMode === "real" ? `{% trans "today's money" %}, ${rawData.inflation.annualRate}% {% trans "inflation" %}` : "{% trans 'nominal' %}";
+        document.getElementById("balance-range-label").textContent = data.length ? `${data[0].label} ${jsText.to} ${data[data.length - 1].label} · ${modeLabel}` : "";
+        document.getElementById("flow-range-label").textContent = document.getElementById("balance-range-label").textContent;
+        document.getElementById("goal-range-label").textContent = goalData.length ? `${goalData[0].label} ${jsText.to} ${goalData[goalData.length - 1].label}` : "";
+        document.getElementById("retirement-cashflow-range-label").textContent = retirementData.length ? `${retirementData[0].label} ${jsText.to} ${retirementData[retirementData.length - 1].label} · ${modeLabel}` : "";
+        document.getElementById("draw-risk-range-label").textContent = retirementData.length ? `${retirementData[0].label} ${jsText.to} ${retirementData[retirementData.length - 1].label}` : "";
+        drawBalanceChart(data, seriesKeys.length ? seriesKeys : ["liquidBalance"]);
+        drawFlowChart(data);
+        drawGoalChart(goalData);
+        drawRetirementCashflowChart(retirementData);
+        drawRiskChart(retirementData);
+        renderMilestones(data);
+        renderTable(data);
+    }
+
+    document.querySelectorAll("[data-range]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.range = button.dataset.range;
+            render();
+        });
+    });
+    document.querySelectorAll("[data-granularity]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.granularity = button.dataset.granularity;
+            render();
+        });
+    });
+    document.querySelectorAll("[data-display-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.displayMode = button.dataset.displayMode;
+            render();
+        });
+    });
+    document.querySelectorAll("[data-series]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                state.series.add(checkbox.dataset.series);
+            } else {
+                state.series.delete(checkbox.dataset.series);
+            }
+            render();
+        });
+    });
+    document.querySelectorAll("[data-reset-chart]").forEach((button) => {
+        button.addEventListener("click", () => {
+            charts[button.dataset.resetChart].dispatchAction({
+                type: "dataZoom",
+                start: 0,
+                end: 100,
+            });
+        });
+    });
+    window.addEventListener("resize", () => {
+        Object.values(charts).forEach((chart) => chart.resize());
+    });
+    render();
+})();
+</script>
+{% endblock %}

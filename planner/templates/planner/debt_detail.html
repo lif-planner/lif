@@ -1,0 +1,103 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{{ debt.name }} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Debt detail" %}</p>
+        <h1>{{ debt.name }}</h1>
+        <p class="muted">
+            {% blocktrans with account=debt.account.name rate=debt.annual_interest_rate %}{{ account }} · {{ rate }}% nominal{% endblocktrans %}
+            {% if not debt.is_active %} · {% trans "paused" %}{% endif %}
+        </p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:debt_update' debt.pk %}">{% trans "Edit debt" %}</a>
+        <a class="button secondary" href="{% url 'planner:debt_index' %}">{% trans "Debts" %}</a>
+    </div>
+</section>
+
+<section class="metrics">
+    <div class="metric">
+        <span>{% trans "Current principal" %}</span>
+        <strong>{{ debt.current_principal|money:household.currency }}</strong>
+        <small>{% blocktrans with amount=debt.monthly_payment|money:household.currency %}{{ amount }} / month{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Payment account" %}</span>
+        <strong>{% if debt.source_account %}{{ debt.source_account.name }}{% else %}{% trans "Default operating" %}{% endif %}</strong>
+        <small>{% if debt.source_account %}{% trans "monthly and extra repayments" %}{% else %}{% trans "falls back to household setting" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Payoff" %}</span>
+        <strong>{% if summary.payoff_month %}{{ summary.payoff_month|date:"M Y" }}{% else %}{% trans "Not within horizon" %}{% endif %}</strong>
+        <small>{% if summary.months_to_payoff %}{% blocktrans with count=summary.months_to_payoff %}{{ count }} payment(s){% endblocktrans %}{% else %}{% trans "Check payment vs interest" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Total interest" %}</span>
+        <strong>{{ summary.total_interest|money:household.currency }}</strong>
+        <small>{% trans "Over the simulated life" %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Ending principal" %}</span>
+        <strong>{{ summary.ending_principal|money:household.currency }}</strong>
+        <small>{% if debt.end_month %}{% blocktrans with month=debt.end_month|date:"M Y" %}At end month {{ month }}{% endblocktrans %}{% else %}{% trans "After payoff" %}{% endif %}</small>
+    </div>
+</section>
+
+{% if debt.interest_only_until or debt.annual_extra_payment %}
+<section>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                {% if debt.interest_only_until %}
+                    <tr><th>{% trans "Interest-only until" %}</th><td>{{ debt.interest_only_until|date:"M Y" }}</td></tr>
+                {% endif %}
+                {% if debt.annual_extra_payment %}
+                    <tr><th>{% trans "Yearly extra payment" %}</th><td>{{ debt.annual_extra_payment|money:household.currency }}{% if debt.extra_payment_month %} {% blocktrans with month=debt.extra_payment_month %}(month {{ month }}){% endblocktrans %}{% endif %}</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Amortization schedule" %}</h2>
+    </div>
+    {% if schedule_truncated %}
+        <p class="muted">{% trans "This loan does not pay off within the simulated horizon; the schedule below is truncated." %}</p>
+    {% endif %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Interest" %}</th>
+                    <th>{% trans "Principal" %}</th>
+                    <th>{% trans "Extra" %}</th>
+                    <th>{% trans "Payment" %}</th>
+                    <th>{% trans "Balance" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in schedule %}
+                    <tr>
+                        <td>{{ row.month|date:"Y-m" }}{% if row.interest_only %} · {% trans "interest only" %}{% endif %}</td>
+                        <td>{{ row.interest|money:household.currency }}</td>
+                        <td>{{ row.principal|money:household.currency }}</td>
+                        <td>{% if row.extra %}{{ row.extra|money:household.currency }}{% else %}-{% endif %}</td>
+                        <td>{{ row.payment|money:household.currency }}</td>
+                        <td>{{ row.ending_principal|money:household.currency }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "Nothing to amortize." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

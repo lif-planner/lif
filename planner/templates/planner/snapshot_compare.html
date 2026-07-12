@@ -1,0 +1,187 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% blocktrans with name=snapshot.name %}Compare {{ name }}{% endblocktrans %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Snapshot Comparison" %}</p>
+        <h1>{{ snapshot.name }}</h1>
+        <p class="muted">{% blocktrans with date=snapshot.snapshot_date|date:"Y-m-d" %}{{ date }} compared with current data.{% endblocktrans %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:snapshot_detail' snapshot.pk %}">{% trans "Snapshot" %}</a>
+        <a class="button secondary" href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+<section class="metrics">
+    {% for total in comparison.totals %}
+        <div class="metric">
+            <span>{{ total.label }}</span>
+            <strong>{{ total.current_value }} {{ comparison.currency }}</strong>
+            <small>{% blocktrans with value=total.snapshot_value %}Snapshot {{ value }}{% endblocktrans %} · {% trans "Delta" %} <span class="{% if total.direction == 'negative' %}negative{% endif %}">{{ total.delta }}</span></small>
+        </div>
+    {% endfor %}
+</section>
+
+{% if comparison.planned_current_month %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Reality Against Plan" %}</h2>
+        <span class="muted">{{ comparison.planned_current_month.label }}</span>
+    </div>
+    <div class="metrics compact">
+        {% for row in comparison.planned_current_month.rows %}
+            <div class="metric">
+                <span>{{ row.label }}</span>
+                <strong>{{ row.current_value }} {{ comparison.currency }}</strong>
+                <small>{% blocktrans with value=row.snapshot_value %}Planned {{ value }}{% endblocktrans %} · {% trans "Delta" %} <span class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }}</span></small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Accounts" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Account" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Snapshot" %}</th>
+                    <th>{% trans "Current" %}</th>
+                    <th>{% trans "Delta" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "As of" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison.accounts %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                        <td>{{ row.snapshot_value }} {{ comparison.currency }}</td>
+                        <td>{{ row.current_value }} {{ comparison.currency }}</td>
+                        <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ comparison.currency }}</td>
+                        <td>{{ row.display_type|default:"-" }}</td>
+                        <td>{{ row.display_as_of_date|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No accounts to compare." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Private Loans" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Loan" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Snapshot" %}</th>
+                    <th>{% trans "Current" %}</th>
+                    <th>{% trans "Delta" %}</th>
+                    <th>{% trans "Borrower" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison.private_loans %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                        <td>{{ row.snapshot_value }} {{ comparison.currency }}</td>
+                        <td>{{ row.current_value }} {{ comparison.currency }}</td>
+                        <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ comparison.currency }}</td>
+                        <td>{{ row.display_borrower|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "No private loans to compare." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Debts" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Debt" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Snapshot" %}</th>
+                    <th>{% trans "Current" %}</th>
+                    <th>{% trans "Delta" %}</th>
+                    <th>{% trans "Account" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison.debts %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                        <td>{{ row.snapshot_value }} {{ comparison.currency }}</td>
+                        <td>{{ row.current_value }} {{ comparison.currency }}</td>
+                        <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ comparison.currency }}</td>
+                        <td>{{ row.display_account|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "No debts to compare." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Holdings" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Holding" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Snapshot" %}</th>
+                    <th>{% trans "Current" %}</th>
+                    <th>{% trans "Delta" %}</th>
+                    <th>ISIN</th>
+                    <th>{% trans "Account" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison.holdings %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                        <td>{{ row.snapshot_value }} {{ comparison.currency }}</td>
+                        <td>{{ row.current_value }} {{ comparison.currency }}</td>
+                        <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ comparison.currency }}</td>
+                        <td>{{ row.display_isin|default:"-" }}</td>
+                        <td>{{ row.display_account|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No holdings to compare." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

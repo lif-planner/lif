@@ -1,0 +1,79 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% blocktrans with name=account.name %}Delete {{ name }}{% endblocktrans %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Accounts" as section_label %}
+{% trans "Delete account" as delete_account_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=delete_account_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Delete local account" %}</p>
+        <h1>{{ account.name }}</h1>
+        <p class="muted">{% trans "Remove this account from LiF. This does not run MoneyMoney, YNAB, or CSV import again." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:account_detail' account.pk %}">{% trans "Back to account" %}</a>
+        <a class="button secondary" href="{% url 'planner:account_index' %}">{% trans "Accounts" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Source" %}</span>
+        <strong>{{ account.get_source_display }}</strong>
+        <small>{% trans "Local database row" %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Balance" %}</span>
+        <strong>{{ account.effective_balance|money:account.currency }}</strong>
+        <small>{{ account.get_account_type_display }}</small>
+    </div>
+</section>
+
+{% if blockers %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Cannot Delete Yet" %}</h2>
+    </div>
+    <div class="issue-list">
+        {% for blocker in blockers %}
+            <div class="issue-row critical">
+                <div>
+                    <span class="status-pill critical">{% trans "blocked" %}</span>
+                    <h3>{{ blocker }}</h3>
+                    <p class="muted">{% trans "Edit or delete the linked planning item first, then return here." %}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Confirm" %}</h2>
+    </div>
+    <form method="post" class="form-panel">
+        {% csrf_token %}
+        <p class="form-hint">{% trans "This deletes only the local account row. References that can safely become blank, such as optional rule accounts or source accounts, will be cleared automatically." %}</p>
+        {% if affected_counts %}
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>{% trans "References that will become blank" %}</th><th>{% trans "Count" %}</th></tr></thead>
+                    <tbody>
+                        {% for label, count in affected_counts.items %}
+                            <tr><td>{{ label }}</td><td>{{ count }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+        <div class="form-actions">
+            <button class="button" type="submit">{% trans "Delete local account" %}</button>
+            <a class="button secondary" href="{% url 'planner:account_detail' account.pk %}">{% trans "Cancel" %}</a>
+        </div>
+    </form>
+</section>
+{% endif %}
+{% endblock %}

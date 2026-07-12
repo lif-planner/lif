@@ -1,0 +1,87 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Change History" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Change history" as history_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=history_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Data health" %}</p>
+        <h1>{% trans "Change history" %}</h1>
+        <p class="muted">{% trans "Recent create, update, and delete events for planning data that can affect the forecast." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+        <a class="button secondary" href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+    </div>
+</section>
+
+<form method="get" class="ledger-filters">
+    <label>{% trans "Model" %}
+        <select name="model">
+            <option value="">{% trans "All" %}</option>
+            {% for model in model_options %}
+                <option value="{{ model }}" {% if selected_model == model %}selected{% endif %}>{{ model }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>{% trans "Action" %}
+        <select name="action">
+            <option value="">{% trans "All" %}</option>
+            {% for value, label in action_options %}
+                <option value="{{ value }}" {% if selected_action == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button class="button secondary" type="submit">{% trans "Filter" %}</button>
+    {% if selected_model or selected_action %}<a class="button secondary" href="{% url 'planner:change_history' %}">{% trans "Clear" %}</a>{% endif %}
+</form>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Recent changes" %}</h2>
+        <span class="muted">{% blocktrans count count=entries|length %}{{ count }} entry{% plural %}{{ count }} entries{% endblocktrans %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "When" %}</th>
+                    <th>{% trans "Action" %}</th>
+                    <th>{% trans "Object" %}</th>
+                    <th>{% trans "Changed fields" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+                        <td><span class="status-pill {% if entry.action == 'deleted' %}warning{% else %}info{% endif %}">{{ entry.get_action_display }}</span></td>
+                        <td>
+                            <strong>{{ entry.model_name }}</strong><br>
+                            <small>{{ entry.object_label|default:entry.object_pk }}</small>
+                        </td>
+                        <td>
+                            {% for field in entry.changed_fields|slice:":8" %}
+                                <span class="status-pill info">{{ field }}</span>
+                            {% empty %}
+                                <span class="muted">{% trans "No field details" %}</span>
+                            {% endfor %}
+                            {% if entry.changed_fields|length > 8 %}
+                                <small>{% blocktrans with count=entry.changed_fields|length|add:"-8" %}+{{ count }} more{% endblocktrans %}</small>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'planner:change_history_detail' entry.pk %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">{% trans "No tracked changes yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,228 @@
+{% load i18n static %}
+{% get_current_language as CURRENT_LANGUAGE %}
+<!doctype html>
+<html lang="{{ CURRENT_LANGUAGE|default:'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}LiF Planner{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'planner/favicon.svg' %}">
+    <link rel="stylesheet" href="{% static 'planner/app.css' %}?v=40">
+    <script src="{% static 'planner/app.js' %}?v=8" defer></script>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="mobile-topbar">
+            <button type="button" class="nav-hamburger" aria-label="{% trans 'Open menu' %}" aria-expanded="false">☰</button>
+            <a class="brand" href="{% url 'planner:dashboard' %}">LiF</a>
+            {% if current_household %}
+                <a class="data-mode-pill {{ current_household.data_mode }}" href="{% url 'planner:real_data_readiness' %}">
+                    {{ current_household.get_data_mode_display }}
+                </a>
+            {% endif %}
+        </header>
+        <div class="nav-overlay" aria-hidden="true"></div>
+        <aside class="sidebar">
+            <div class="brand-wrap">
+                <a class="brand" href="{% url 'planner:dashboard' %}">LiF</a>
+                {% if current_household %}
+                    <a class="data-mode-pill {{ current_household.data_mode }}" href="{% url 'planner:real_data_readiness' %}">
+                        {% blocktrans with mode=current_household.get_data_mode_display %}{{ mode }} data{% endblocktrans %}
+                    </a>
+                {% endif %}
+                {% if household_switcher|length > 1 and current_household %}
+                    <div class="household-switcher">
+                        <span>{% trans "Household" %}</span>
+                        {% for item in household_switcher %}
+                            {% if item.pk == current_household.pk %}
+                                <strong>{{ item.name }}</strong>
+                            {% else %}
+                                <form method="post" action="{% url 'planner:household_switch' item.pk %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit">{{ item.name }}</button>
+                                </form>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            <nav class="side-nav" aria-label="{% trans 'Primary navigation' %}">
+                <a href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+                <details class="side-nav-group" open>
+                    <summary>{% trans "Money" %}</summary>
+                    <a href="{% url 'planner:account_index' %}">{% trans "Accounts" %}</a>
+                    {% if feature_flags.depot_holdings %}<a href="{% url 'planner:holding_index' %}">{% trans "Depot holdings" %}</a>{% endif %}
+                    {% if feature_flags.debts %}<a href="{% url 'planner:debt_index' %}">{% trans "Debts" %}</a>{% endif %}
+                    {% if feature_flags.real_estate %}<a href="{% url 'planner:real_estate_index' %}">{% trans "Properties" %}</a>{% endif %}
+                </details>
+                <details class="side-nav-group" open>
+                    <summary>{% trans "Plan" %}</summary>
+                    <a href="{% url 'planner:plan_index' %}">{% trans "Income & expenses" %}</a>
+                    <a href="{% url 'planner:transfer_plan' %}">{% trans "Transfers" %}</a>
+                    {% if feature_flags.cash_goals %}<a href="{% url 'planner:cash_goal_index' %}">{% trans "Cash goals" %}</a>{% endif %}
+                    {% if feature_flags.retirement_plans %}<a href="{% url 'planner:retirement_plan_index' %}">{% trans "Retirement plans" %}</a>{% endif %}
+                </details>
+                <details class="side-nav-group" open>
+                    <summary>{% trans "Forecast" %}</summary>
+                    {% if feature_flags.analytics %}<a href="{% url 'planner:analytics' %}">{% trans "Analytics" %}</a>{% endif %}
+                    {% if feature_flags.analytics %}<a href="{% url 'planner:goal_planner' %}">{% trans "Goal planner" %}</a>{% endif %}
+                    <a href="{% url 'planner:assumptions_registry' %}">{% trans "Assumptions" %}</a>
+                    <a href="{% url 'planner:projection_integrity' %}">{% trans "Integrity" %}</a>
+                    <a href="{% url 'planner:income_timeline' %}">{% trans "Income" %}</a>
+                    <a href="{% url 'planner:projection_audit' 0 %}?goto={% now 'Y-m' %}">{% trans "Month view" %}</a>
+                    <a href="{% url 'planner:projection_year_audit' 0 %}?goto_year={% now 'Y' %}">{% trans "Year view" %}</a>
+                    <a href="{% url 'planner:yearly_report' %}">{% trans "Year report" %}</a>
+                    {% if feature_flags.scenarios %}<a href="{% url 'planner:scenario_compare' %}">{% trans "Scenarios" %}</a>{% endif %}
+                </details>
+                <details class="side-nav-group" open>
+                    <summary>{% trans "Data health" %}{% if attention_count %} <span class="nav-badge">{{ attention_count }}</span>{% endif %}</summary>
+                    <a href="{% url 'planner:data_quality' %}">{% trans "Health checks" %}</a>
+                    <a href="{% url 'planner:reconciliation_center' %}">{% trans "Reconciliation" %}</a>
+                    <a href="{% url 'planner:change_history' %}">{% trans "Change history" %}</a>
+                    {% if feature_flags.snapshots %}
+                        <a href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+                        <a href="{% url 'planner:snapshot_review' %}">{% trans "Annual review" %}</a>
+                    {% endif %}
+                </details>
+                {% if feature_flags.imports %}
+                    <details class="side-nav-group" open>
+                        <summary>{% trans "Imports" %}</summary>
+                        <a href="{% url 'planner:import_center' %}">{% trans "Import center" %}</a>
+                        <a href="{% url 'planner:import_runbook' %}">{% trans "Runbook" %}</a>
+                    </details>
+                {% endif %}
+                <details class="side-nav-group">
+                    <summary>⚙ {% trans "Settings" %}</summary>
+                    <a href="{% url 'planner:real_data_start' %}">{% trans "Real data start" %}</a>
+                    <a href="{% url 'planner:setup' %}">{% trans "Household setup" %}</a>
+                    <a href="{% url 'planner:household_settings' %}">{% trans "Household settings" %}</a>
+                    <a href="{% url 'planner:onboarding' %}">{% trans "Onboarding" %}</a>
+                    <a href="{% url 'planner:backup_center' %}">{% trans "Backups" %}</a>
+                    <a href="{% url 'planner:system_status' %}">{% trans "Status" %}</a>
+                    <a href="/admin/planner/featureflag/">{% trans "Feature Flags" %}</a>
+                    <a href="/admin/">{% trans "Admin" %}</a>
+                    {% if request.user.is_authenticated %}
+                        <form method="post" action="{% url 'logout' %}" class="nav-form">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link">{% trans "Logout" %}</button>
+                        </form>
+                    {% endif %}
+                </details>
+            </nav>
+            <footer class="footer">
+                <form action="{% url 'planner:privacy_mode_toggle' %}" method="post" class="privacy-switcher">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% if privacy_mode_enabled %}
+                        <input type="hidden" name="enabled" value="0">
+                        <button type="submit" class="privacy-toggle active" aria-pressed="true">
+                            <span>{% trans "Privacy" %}</span>
+                            <strong>{% trans "On" %}</strong>
+                        </button>
+                    {% else %}
+                        <input type="hidden" name="enabled" value="1">
+                        <button type="submit" class="privacy-toggle" aria-pressed="false">
+                            <span>{% trans "Privacy" %}</span>
+                            <strong>{% trans "Off" %}</strong>
+                        </button>
+                    {% endif %}
+                </form>
+                <form action="{% url 'set_language' %}" method="post" class="language-switcher">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <label for="language-select">{% trans "Language" %}</label>
+                    <select id="language-select" name="language" onchange="this.form.submit()">
+                        {% get_available_languages as AVAILABLE_LANGUAGES %}
+                        {% for language_code, language_name in AVAILABLE_LANGUAGES %}
+                            <option value="{{ language_code }}"{% if language_code == CURRENT_LANGUAGE %} selected{% endif %}>
+                                {{ language_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <noscript><button type="submit">{% trans "Apply" %}</button></noscript>
+                </form>
+                <span>LiF {{ app_version }}</span>
+                <span>{{ git_commit }}</span>
+            </footer>
+        </aside>
+        <main class="page">
+            {% if current_household.data_mode == "demo" %}
+                <div class="demo-banner">
+                    <div>
+                        <span class="status-pill warning">{% trans "Demo data" %}</span>
+                        <strong>{% trans "Sample planning data is active" %}</strong>
+                        <p>{% trans "This household is safe to explore and reset. Do not enter private financial data here." %}</p>
+                    </div>
+                    <div class="actions">
+                        <a class="button" href="{% url 'planner:real_data_start' %}">{% trans "Start real-data setup" %}</a>
+                        <a class="button secondary" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+                    </div>
+                </div>
+            {% endif %}
+            {% if feature_flags.read_only_mode %}
+                <div class="message">{% trans "Read-only mode is active. Planning data changes are currently disabled." %}</div>
+            {% endif %}
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+        <aside class="attention-rail" aria-label="{% trans 'Needs attention' %}">
+            {% block rail_context %}{% endblock %}
+            <div class="attention-heading">
+                <span>{% trans "Needs attention" %}</span>
+                <span class="attention-heading-actions">
+                    <a href="{% url 'planner:attention_settings' %}">{% trans "Manage" %}</a>
+                    <button type="button" class="rail-toggle" aria-label="{% trans 'Hide needs-attention panel' %}" title="{% trans 'Hide panel' %}">⟩</button>
+                </span>
+            </div>
+            <div class="attention-list">
+                {% for item in attention_items %}
+                    <div class="attention-card {{ item.severity }}">
+                        <div class="attention-card-top">
+                            <span class="status-pill {{ item.severity }}">{{ item.priority }}</span>
+                        </div>
+                        <strong>{{ item.label }}</strong>
+                        <p>{{ item.detail }}</p>
+                        {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
+                    </div>
+                {% empty %}
+                    <div class="attention-card info">
+                        <span class="status-pill ok">{% trans "clear" %}</span>
+                        <strong>{% trans "Nothing urgent" %}</strong>
+                        <p>{% trans "No high-signal planning actions right now." %}</p>
+                        {% if feature_flags.analytics %}<a href="{% url 'planner:analytics' %}">{% trans "Open forecast" %}</a>{% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </aside>
+        <button type="button" class="rail-reopen" aria-label="{% trans 'Show needs-attention panel' %}" title="{% trans 'Show needs-attention panel' %}">
+            {% trans "Needs attention" %}{% if attention_count %} <span class="nav-badge">{{ attention_count }}</span>{% endif %}
+        </button>
+        <nav class="mobile-tabbar" aria-label="{% trans 'Mobile primary navigation' %}">
+            <a href="{% url 'planner:dashboard' %}">
+                <span>{% trans "Home" %}</span>
+            </a>
+            <a href="{% url 'planner:account_index' %}">
+                <span>{% trans "Accounts" %}</span>
+            </a>
+            <a href="{% url 'planner:transfer_plan' %}">
+                <span>{% trans "Cash flow" %}</span>
+            </a>
+            {% if feature_flags.analytics %}
+                <a href="{% url 'planner:analytics' %}">
+                    <span>{% trans "Forecast" %}</span>
+                </a>
+            {% endif %}
+            <a href="{% url 'planner:data_quality' %}">
+                <span>{% trans "Health" %}{% if attention_count %} <strong>{{ attention_count }}</strong>{% endif %}</span>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>

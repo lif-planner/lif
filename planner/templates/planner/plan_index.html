@@ -1,0 +1,257 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Plan" %} | LiF Planner{% endblock %}
+
+{% block rail_context %}
+<div class="attention-heading">
+    <span>{% trans "Plan guide" %}</span>
+</div>
+<div class="attention-list rail-guide">
+    <div class="attention-card info">
+        <span class="status-pill info">{% trans "rules" %}</span>
+        <strong>{% trans "Rules are the baseline" %}</strong>
+        <p>{% trans "Use income and expense rules for recurring cash flow that is true now, such as salary, rent, insurance, and groceries. Use transfer rules for ETF savings or extra repayments." %}</p>
+    </div>
+    <div class="attention-card info">
+        <span class="status-pill info">{% trans "future" %}</span>
+        <strong>{% trans "Salary changes are dated" %}</strong>
+        <p>{% trans "A salary change is a delta. For 3,200 to 3,700, enter +500. For a reduction, enter a negative monthly amount." %}</p>
+        {% if feature_flags.salary_changes %}<a href="{% url 'planner:salary_change_create' %}">{% trans "Add salary change" %}</a>{% endif %}
+    </div>
+    <div class="attention-card info">
+        <span class="status-pill info">RSU</span>
+        <strong>{% trans "RSUs create cash first" %}</strong>
+        <p>{% trans "Equity grants add net cash on vesting months. Use a separate transfer rule to move planned cash into a depot or ETF." %}</p>
+        {% if feature_flags.equity_grants %}<a href="{% url 'planner:equity_grant_create' %}">{% trans "Add RSU / equity grant" %}</a>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% trans "General liquid pool" as liquid_pool_label %}
+{% trans "general cash" as general_cash_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Plan" %}</p>
+        <h1>{% trans "Income, spending, and events" %}</h1>
+        <p class="muted">{% trans "Recurring rules and planned changes that drive the forecast." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:rule_create' %}">{% trans "Add rule" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                {% if feature_flags.analytics %}<a href="{% url 'planner:goal_planner' %}">{% trans "Goal planner" %}</a>{% endif %}
+                {% if feature_flags.cash_goals %}<a href="{% url 'planner:cash_goal_index' %}">{% trans "Cash goals" %}</a>{% endif %}
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Monthly income" %}</span>
+        <strong>{{ monthly_income|money:household.currency }}</strong>
+        <small>{% trans "Active recurring income rules." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Monthly expenses" %}</span>
+        <strong>{{ monthly_expenses|money:household.currency }}</strong>
+        <small>{% trans "Active recurring expense rules." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Rule net" %}</span>
+        <strong class="{% if monthly_net < 0 %}negative{% endif %}">{{ monthly_net|money:household.currency }}</strong>
+        <small>{% trans "Before true expenses and one-off events." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Monthly transfers" %}</span>
+        <strong>{{ monthly_transfers|money:household.currency }}</strong>
+        <small>{% trans "Depot savings, savings moves, and extra debt repayment." %}</small>
+    </div>
+</section>
+
+{% if rule_categories %}
+<section class="quality-filters">
+    <div class="section-heading">
+        <h2>{% trans "Categories" %}</h2>
+    </div>
+    <div class="filter-pills">
+        {% for category in rule_categories %}
+            <span class="status-pill info">{{ category }}</span>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Income Rules" %}</h2>
+        <a href="{% url 'planner:rule_create' %}">{% trans "Add" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Category" %}</th><th>{% trans "Person" %}</th><th>{% trans "Account" %}</th><th>{% trans "Amount" %}</th><th>{% trans "Growth" %}</th><th>{% trans "Monthly" %}</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+                {% for rule in income_rules %}
+                    <tr>
+                        <td><a href="{% url 'planner:rule_update' rule.pk %}">{{ rule.name }}</a></td>
+                        <td>{{ rule.category|default:"-" }}</td>
+                        <td>{{ rule.person.name|default:"-" }}</td>
+                        <td>{% if rule.account %}{{ rule.account.name }}{% elif household.default_operating_account %}{{ household.default_operating_account.name }}{% else %}{{ liquid_pool_label }}{% endif %}</td>
+                        <td>{{ rule.amount|money:household.currency }} · {{ rule.get_cadence_display }}</td>
+                        <td>{% if rule.annual_growth_rate is None %}{% blocktrans with rate=household.default_income_growth_rate %}Default {{ rate }}%{% endblocktrans %}{% else %}{{ rule.annual_growth_rate }}%{% endif %}</td>
+                        <td>{{ rule.monthly_amount|money:household.currency }}</td>
+                        <td>{% if rule.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">{% trans "No income rules yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Expense Rules" %}</h2>
+        <a href="{% url 'planner:rule_create' %}">{% trans "Add" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Category" %}</th><th>{% trans "Account" %}</th><th>{% trans "Amount" %}</th><th>{% trans "Monthly" %}</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+                {% for rule in expense_rules %}
+                    <tr>
+                        <td><a href="{% url 'planner:rule_update' rule.pk %}">{{ rule.name }}</a></td>
+                        <td>{{ rule.category|default:"-" }}</td>
+                        <td>{% if rule.account %}{{ rule.account.name }}{% elif household.default_operating_account %}{{ household.default_operating_account.name }}{% else %}{{ liquid_pool_label }}{% endif %}</td>
+                        <td>{{ rule.amount|money:household.currency }} · {{ rule.get_cadence_display }}</td>
+                        <td>{{ rule.monthly_amount|money:household.currency }}</td>
+                        <td>{% if rule.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "No expense rules yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Transfer Rules" %}</h2>
+        <a href="{% url 'planner:transfer_rule_create' %}">{% trans "Add" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Category" %}</th><th>{% trans "Source" %}</th><th>{% trans "Target" %}</th><th>{% trans "Amount" %}</th><th>{% trans "Monthly" %}</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+                {% for rule in transfer_rules %}
+                    <tr>
+                        <td><a href="{% url 'planner:transfer_rule_update' rule.pk %}">{{ rule.name }}</a></td>
+                        <td>{{ rule.category|default:"-" }}</td>
+                        <td>{{ rule.source_account.name|default:liquid_pool_label }}</td>
+                        <td>{{ rule.target_account.name }}</td>
+                        <td>{{ rule.amount|money:household.currency }} · {{ rule.get_cadence_display }}</td>
+                        <td>{{ rule.monthly_amount|money:household.currency }}</td>
+                        <td>{% if rule.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No transfer rules yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Future Changes" %}</h2>
+            <p class="muted">{% trans "Dated changes that adjust the forecast later without changing today's baseline rules." %}</p>
+        </div>
+        <div class="actions">
+            <details class="nav-group">
+                <summary>{% trans "More" %} ▾</summary>
+                <div class="nav-menu nav-menu-right">
+                    {% if feature_flags.salary_changes %}<a href="{% url 'planner:salary_change_create' %}">{% trans "Add salary change" %}</a>{% endif %}
+                    {% if feature_flags.equity_grants %}<a href="{% url 'planner:equity_grant_create' %}">{% trans "Add RSU / equity grant" %}</a>{% endif %}
+                    {% if feature_flags.income_investments %}<a href="{% url 'planner:private_loan_create' %}">{% trans "Add private loan" %}</a>{% endif %}
+                    <a href="{% url 'planner:family_gift_plan_create' %}">{% trans "Add family gift" %}</a>
+                    <a href="{% url 'planner:real_estate_transfer_plan_create' %}">{% trans "Add property transfer" %}</a>
+                    <a href="{% url 'planner:planned_investment_purchase_create' %}">{% trans "Add investment purchase" %}</a>
+                    <a href="{% url 'planner:transfer_rule_create' %}">{% trans "Add transfer rule" %}</a>
+                </div>
+            </details>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>{% trans "Person" %}</th><th>{% trans "Start" %}</th><th>{% trans "Amount" %}</th></tr></thead>
+            <tbody>
+                {% if not has_future_changes %}
+                    <tr><td colspan="5">{% trans "No future changes yet. Add salary changes, true expenses, child milestones, equity grants, family gifts, property transfers, dated income investments, or planned investment purchases when the forecast should change later." %}</td></tr>
+                {% endif %}
+                {% for item in true_expenses %}
+                    <tr><td><a href="{% url 'planner:true_expense_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "True expense" %}</td><td>-</td><td>{{ item.first_due_month|date:"Y-m" }}</td><td>{{ item.amount|money:household.currency }}{% if item.account %} · {% blocktrans with name=item.account.name %}from {{ name }}{% endblocktrans %}{% elif household.default_operating_account %} · {% blocktrans with name=household.default_operating_account.name %}from {{ name }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in income_investments %}
+                    <tr><td><a href="{% url 'planner:income_investment_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Income investment" %}</td><td>-</td><td>{{ item.start_month|date:"Y-m" }}</td><td>{{ item.monthly_income|money:item.currency }} · {% if item.annual_growth_rate is None %}{% blocktrans with rate=household.default_income_growth_rate %}default {{ rate }}% growth{% endblocktrans %}{% else %}{% blocktrans with rate=item.annual_growth_rate %}{{ rate }}% growth{% endblocktrans %}{% endif %}{% if item.source_account %} · {% blocktrans with amount=item.principal|money:item.currency name=item.source_account.name %}{{ amount }} from {{ name }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in private_loans %}
+                    <tr><td><a href="{% url 'planner:private_loan_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Private loan" %}</td><td>{{ item.borrower|default:"-" }}</td><td>{{ item.start_month|date:"Y-m"|default:"-" }}</td><td>{% blocktrans with rate=item.annual_interest_rate net=item.starting_monthly_net_interest_income|money:item.currency principal=item.monthly_principal_repayment|money:item.currency target=item.source_account.name|default:general_cash_label %}{{ rate }}% interest · {{ net }} net/month · {{ principal }} principal · to {{ target }}{% endblocktrans %}{% if item.disbursement_month %} · {% blocktrans with date=item.disbursement_month|date:"Y-m" %}paid out {{ date }}{% endblocktrans %}{% endif %}{% if item.end_month %} · {% blocktrans with date=item.end_month|date:"Y-m" %}final {{ date }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in planned_purchases %}
+                    <tr><td><a href="{% url 'planner:planned_investment_purchase_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Investment purchase" %}</td><td>{{ item.person.name|default:"-" }}</td><td>{{ item.purchase_month|date:"Y-m" }}</td><td>{{ item.purchase_amount|money:household.currency }} · {{ item.get_asset_type_display }} · {{ item.source_account.name|default:general_cash_label }} -> {{ item.target_account.name }}{% if item.payout_date %} · {% blocktrans with amount=item.expected_payout_amount|money:household.currency date=item.payout_date|date:"Y-m-d" %}pays {{ amount }} on {{ date }}{% endblocktrans %}{% endif %}{% if item.annual_distribution_rate %} · {% blocktrans with rate=item.annual_distribution_rate cadence=item.get_distribution_cadence_display|lower %}Distribution {{ rate }}% {{ cadence }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in family_gifts %}
+                    <tr><td><a href="{% url 'planner:family_gift_plan_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Family gift" %}</td><td>{{ item.recipient.name }}</td><td>{{ item.gift_month|date:"Y-m" }}</td><td>{{ item.amount|money:household.currency }} · {{ item.giver.name }} -> {{ item.target_account.name }} · {% blocktrans with start=item.window_start_year end=item.window_end_year %}window {{ start }}-{{ end }}{% endblocktrans %}</td></tr>
+                {% endfor %}
+                {% for item in property_transfers %}
+                    <tr><td><a href="{% url 'planner:real_estate_transfer_plan_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Property transfer" %}</td><td>{{ item.recipient.name }}</td><td>{{ item.transfer_month|date:"Y-m" }}</td><td>{{ item.ownership_percent }}% {{ item.property_item.name }} · {{ item.taxable_gift_value|money:household.currency }} {% trans "taxable value" %}{% if item.retained_niessbrauch %} · {% trans "Nießbrauch retained" %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in equity_grants %}
+                    <tr><td><a href="{% url 'planner:equity_grant_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Equity grant" %}</td><td>{{ item.person.name|default:"-" }}</td><td>{{ item.first_vest_month|date:"Y-m" }}</td><td>{{ item.net_vest_value|money:item.currency }}{% if item.account %} · {% blocktrans with name=item.account.name %}to {{ name }}{% endblocktrans %}{% elif household.default_operating_account %} · {% blocktrans with name=household.default_operating_account.name %}to {{ name }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+                {% for item in child_milestones %}
+                    <tr><td><a href="{% url 'planner:child_milestone_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Child milestone" %}</td><td>{{ item.person.name }}</td><td>{{ item.start_month|date:"Y-m" }}</td><td>{{ item.monthly_income_delta|money:household.currency }} / {{ item.monthly_cost_delta|money:household.currency }}</td></tr>
+                {% endfor %}
+                {% for item in salary_changes %}
+                    <tr><td><a href="{% url 'planner:salary_change_update' item.pk %}">{{ item.name }}</a></td><td>{% trans "Salary change" %}</td><td>{{ item.person.name }}</td><td>{{ item.start_month|date:"Y-m" }}</td><td>{{ item.monthly_net_income_delta|money:household.currency }}{% if item.account %} · {% blocktrans with name=item.account.name %}to {{ name }}{% endblocktrans %}{% elif household.default_operating_account %} · {% blocktrans with name=household.default_operating_account.name %}to {{ name }}{% endblocktrans %}{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if family_gift_allowance_rows %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Gift Allowance Windows" %}</h2>
+            <p class="muted">{% trans "Planning view for German 10-year gift allowance timing by giver and child. This is an estimate, not tax advice." %}</p>
+        </div>
+        <a href="{% url 'planner:family_gift_plan_create' %}">{% trans "Add family gift" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Giver" %}</th><th>{% trans "Recipient" %}</th><th>{% trans "Window" %}</th><th>{% trans "Planned" %}</th><th>{% trans "Allowance" %}</th><th>{% trans "Remaining" %}</th></tr></thead>
+            <tbody>
+                {% for row in family_gift_allowance_rows %}
+                    <tr>
+                        <td>{{ row.giver.name }}</td>
+                        <td>{{ row.recipient.name }}</td>
+                        <td>{{ row.window_start_year }}-{{ row.window_end_year }}</td>
+                        <td>{{ row.planned_amount|money:household.currency }}</td>
+                        <td>{{ row.allowance_amount|money:household.currency }}</td>
+                        <td class="{% if row.over_allowance %}negative{% endif %}">{{ row.remaining_amount|money:household.currency }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

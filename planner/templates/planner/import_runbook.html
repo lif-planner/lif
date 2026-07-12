@@ -1,0 +1,125 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Import Runbook" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Import runbook" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Follow the safe order for first-time real data imports." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+        <a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Imports" %}</a>
+        <a class="button secondary" href="{% url 'planner:moneymoney_mappings' %}">{% trans "Mappings" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Overrides" %}</span>
+        <strong>{{ mapping_count }}</strong>
+        <small>{% blocktrans count count=mapping_count %}MoneyMoney account type mapping rule.{% plural %}MoneyMoney account type mapping rules.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Latest accounts batch" %}</span>
+        <strong>{% if latest_account_batch %}#{{ latest_account_batch.pk }}{% else %}-{% endif %}</strong>
+        <small>{% if latest_account_batch %}{{ latest_account_batch.get_status_display }}{% else %}{% trans "No account import yet." %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Latest holdings batch" %}</span>
+        <strong>{% if latest_holding_batch %}#{{ latest_holding_batch.pk }}{% else %}-{% endif %}</strong>
+        <small>{% if latest_holding_batch %}{{ latest_holding_batch.get_status_display }}{% else %}{% trans "No holding import yet." %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Critical issues" %}</span>
+        <strong>{{ quality_report.counts.critical }}</strong>
+        <small>{% blocktrans count count=quality_report.total %}{{ count }} total data quality issue.{% plural %}{{ count }} total data quality issues.{% endblocktrans %}</small>
+    </div>
+</section>
+
+{% if next_item %}
+<section class="issue-row warning">
+    <div>
+        <span class="status-pill warning">{% trans "next" %}</span>
+        <h3>{{ next_item.label }}</h3>
+        <p class="muted">{{ next_item.detail }}</p>
+    </div>
+    {% if next_item.action_url %}
+        <a class="button secondary" href="{{ next_item.action_url }}">{{ next_item.action_label }}</a>
+    {% endif %}
+</section>
+{% else %}
+<section class="issue-row info">
+    <div>
+        <span class="status-pill ok">{% trans "ready" %}</span>
+        <h3>{% trans "Import runbook complete" %}</h3>
+        <p class="muted">{% trans "The first-pass import sequence is complete. Review analytics and tune assumptions next." %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Open analytics" %}</a>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Checklist" %}</h2>
+    </div>
+    <div class="issue-list">
+        {% for item in items %}
+            <div class="issue-row {% if item.complete %}info{% else %}warning{% endif %}">
+                <div>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">
+                        {% if item.complete %}{% trans "done" %}{% else %}{% trans "todo" %}{% endif %}
+                    </span>
+                    <h3>{{ forloop.counter }}. {{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% if moneymoney_diagnostics %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Last Diagnostics" %}</h2>
+        <span class="status-pill {% if moneymoney_diagnostics.reachable %}ok{% else %}critical{% endif %}">
+            {% if moneymoney_diagnostics.reachable %}{% trans "reachable" %}{% else %}{% trans "blocked" %}{% endif %}
+        </span>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>py-money</span>
+            <strong>{% if moneymoney_diagnostics.py_money_installed %}{% trans "Installed" %}{% else %}{% trans "Missing" %}{% endif %}</strong>
+        </div>
+        <div class="metric">
+            <span>{% trans "Accounts" %}</span>
+            <strong>{{ moneymoney_diagnostics.account_count }}</strong>
+        </div>
+        <div class="metric">
+            <span>{% trans "Portfolios" %}</span>
+            <strong>{{ moneymoney_diagnostics.portfolio_count }}</strong>
+        </div>
+        <div class="metric">
+            <span>{% trans "Positions" %}</span>
+            <strong>{{ moneymoney_diagnostics.position_count }}</strong>
+        </div>
+    </div>
+    {% if moneymoney_diagnostics.error %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "error" %}</span>
+                <h3>{% trans "Connector error" %}</h3>
+                <p class="muted">{{ moneymoney_diagnostics.error }}</p>
+            </div>
+        </div>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

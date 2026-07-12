@@ -1,0 +1,77 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Planning Review" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Planning review" as review_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=review_label %}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Planning review" %}</p>
+        <h1>{% trans "Trust checklist" %}</h1>
+        <p class="muted">{% trans "A decision-readiness pass across account data, assumptions, projection math, quality checks, and scenarios." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:reconciliation_center' %}">{% trans "Reconciliation" %}</a>
+        <a class="button secondary" href="{% url 'planner:assumptions_registry' %}">{% trans "Assumptions" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="quality" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Complete" %}</span>
+        <strong class="{% if complete_count < total_count %}negative{% endif %}">{{ complete_count }}/{{ total_count }}</strong>
+        <small>{% trans "Review checks ready." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Data confidence" %}</span>
+        <strong class="{% if data_confidence.average_score < 70 %}negative{% endif %}">{{ data_confidence.average_score }}%</strong>
+        <small>{% trans "Average account confidence." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Expired assumptions" %}</span>
+        <strong class="{% if assumption_registry.confidence_counts.expired %}negative{% endif %}">{{ assumption_registry.confidence_counts.expired }}</strong>
+        <small>{% trans "Reviews older than the review window." %}</small>
+        {% if assumption_registry.confidence_counts.expired %}
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_expired_assumptions_reviewed">
+                <input type="text" name="reviewed_by" placeholder="{% trans 'Reviewer' %}" aria-label="{% trans 'Reviewer' %}">
+                <input type="text" name="note" placeholder="{% trans 'Note' %}" aria-label="{% trans 'Review note' %}">
+                <button class="button secondary" type="submit">{% trans "Mark all expired reviewed" %}</button>
+            </form>
+        {% endif %}
+    </div>
+    <div class="metric">
+        <span>{% trans "Quality issues" %}</span>
+        <strong class="{% if quality_report.counts.critical %}negative{% endif %}">{{ quality_report.total }}</strong>
+        <small>{% blocktrans with critical=quality_report.counts.critical warning=quality_report.counts.warning %}{{ critical }} critical, {{ warning }} warning{% endblocktrans %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Checklist" %}</h2>
+            <p class="muted">{% trans "Use this before making decisions from long-range scenarios or retirement projections." %}</p>
+        </div>
+    </div>
+    <div class="issue-list">
+        {% for item in items %}
+            <div class="issue-row {% if item.complete %}info{% else %}warning{% endif %}">
+                <div>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">{% if item.complete %}{% trans "ready" %}{% else %}{% trans "review" %}{% endif %}</span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                <a class="button secondary" href="{{ item.url }}">{{ item.action }}</a>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

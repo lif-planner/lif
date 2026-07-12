@@ -1,0 +1,38 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Clone Scenario Household" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Scenarios" %}</p>
+        <h1>{% trans "Clone household for a structural scenario" %}</h1>
+        <p class="muted">{% trans "Create a separate household copy when a what-if plan needs different assets, debts, cash goals, or family assumptions." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:scenario_compare' %}">{% trans "Scenario compare" %}</a>
+                <a href="{% url 'planner:household_settings' %}">{% trans "Households" %}</a>
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="grid two">
+    <form method="post" class="form-panel">
+        {% csrf_token %}
+        <p class="form-hint">{% trans "The clone copies planning data only. Imports, connector mappings, snapshots, reviews, and annual-review actions stay with the source household." %}</p>
+        {{ form.as_div }}
+        <div class="form-actions">
+            <button class="button" type="submit">{% trans "Create scenario household" %}</button>
+        </div>
+    </form>
+    <div class="empty-state">
+        <h3>{% trans "Use this for big forks" %}</h3>
+        <p>{% trans "Examples: buy a larger home, retire earlier, move to conservative returns, sell a property, or change family cash goals." %}</p>
+    </div>
+</section>
+{% endblock %}

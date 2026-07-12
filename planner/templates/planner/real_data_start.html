@@ -1,0 +1,92 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Real Data Start" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Real data" %}</p>
+        <h1>{% trans "Start with real data" %}</h1>
+        <p class="muted">{% trans "A safe order for turning a demo or empty household into a private planning instance you can trust." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                {% if feature_flags.snapshots and baseline_snapshot %}<a href="{% url 'planner:snapshot_compare' baseline_snapshot.pk %}">{% trans "Compare current to baseline" %}</a>{% endif %}
+                <a href="{% url 'planner:setup' %}">{% trans "Setup" %}</a>
+                {% if feature_flags.imports %}<a href="{% url 'planner:import_center' %}">{% trans "Imports" %}</a>{% endif %}
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Overall readiness" %}</span>
+        <strong>{{ summary.percent }}%</strong>
+        <small>{% blocktrans with complete=summary.complete total=summary.total %}{{ complete }} of {{ total }} readiness checks complete.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Critical quality" %}</span>
+        <strong class="{% if quality_report.counts.critical %}negative{% endif %}">{{ quality_report.counts.critical }}</strong>
+        <small>{% trans "Must be zero before trusting the first baseline." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Data mode" %}</span>
+        <strong>{{ household.get_data_mode_display }}</strong>
+        <small>{% trans "Shown in the top bar." %}</small>
+    </div>
+</section>
+
+{% if feature_flags.snapshots and baseline_snapshot_prompt %}
+<section class="issue-row warning">
+    <div>
+        <span class="status-pill warning">{% trans "baseline" %}</span>
+        <h3>{% trans "Create your first real-data snapshot" %}</h3>
+        <p class="muted">{% trans "Your foundation has no critical quality issues. Freeze this moment as day zero before making larger planning changes." %}</p>
+    </div>
+    <a class="button" href="{% url 'planner:snapshots' %}">{% trans "Create snapshot" %}</a>
+</section>
+{% endif %}
+
+{% if feature_flags.snapshots and baseline_snapshot %}
+<section class="issue-row info">
+    <div>
+        <span class="status-pill ok">{% trans "baseline" %}</span>
+        <h3>{% trans "Baseline snapshot is pinned" %}</h3>
+        <p class="muted">{% blocktrans with name=baseline_snapshot.name date=baseline_snapshot.snapshot_date|date:"Y-m-d" %}Use {{ name }} from {{ date }} as the day-zero reference for current planning drift.{% endblocktrans %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:snapshot_compare' baseline_snapshot.pk %}">{% trans "Compare current to baseline" %}</a>
+</section>
+{% endif %}
+
+{% for phase in workflow %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{{ phase.title }}</h2>
+            <p class="muted">{{ phase.detail }}</p>
+        </div>
+    </div>
+    <div class="issue-list">
+        {% for item in phase.items %}
+            <div class="issue-row {% if item.complete %}info{% else %}warning{% endif %}">
+                <div>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">
+                        {% if item.complete %}{% trans "done" %}{% else %}{% trans "todo" %}{% endif %}
+                    </span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endfor %}
+{% endblock %}

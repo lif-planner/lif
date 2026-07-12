@@ -1,0 +1,58 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Retirement Plans" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Forecast" %}</p>
+        <h1>{% trans "Retirement plans" %}</h1>
+        <p class="muted">{% trans "Statutory pension points and private pension income assumptions." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:retirement_plan_create' %}">{% trans "Add pension" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:retirement_detail' %}">{% trans "Retirement forecast" %}</a>
+            </div>
+        </details>
+    </div>
+</section>
+
+<section>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Person" %}</th>
+                    <th>{% trans "Vehicle" %}</th>
+                    <th>{% trans "Current points" %}</th>
+                    <th>{% trans "Annual points" %}</th>
+                    <th>{% trans "Private pension" %}</th>
+                    <th>{% trans "Start" %}</th>
+                    <th>{% trans "Status" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in plans %}
+                    <tr>
+                        <td><a href="{% url 'planner:retirement_plan_update' plan.pk %}">{{ plan.name }}</a></td>
+                        <td>{{ plan.person.name|default:"-" }}</td>
+                        <td>{{ plan.get_vehicle_type_display }}</td>
+                        <td>{{ plan.current_pension_points }}</td>
+                        <td>{{ plan.expected_annual_points }}</td>
+                        <td>{{ plan.private_monthly_pension|money:household.currency }}</td>
+                        <td>{{ plan.retirement_start_month|date:"Y-m" }}</td>
+                        <td>{% if plan.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">{% trans "No retirement plans yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

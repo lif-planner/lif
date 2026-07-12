@@ -1,0 +1,372 @@
+{% load i18n planner_extras %}
+{% get_current_language as CURRENT_LANGUAGE %}
+<!doctype html>
+<html lang="{{ CURRENT_LANGUAGE|default:'en' }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% blocktrans with name=household.name %}{{ name }} Journey Report{% endblocktrans %} | LiF Planner</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #17221d;
+            --muted: #66736d;
+            --line: #d8e2dc;
+            --paper: #f7faf8;
+            --panel: #ffffff;
+            --green: #0f6b4d;
+            --teal: #2f8f83;
+            --gold: #d9a441;
+            --red: #b42318;
+            --blue: #356a96;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font: 18px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        .deck {
+            height: 100vh;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+        }
+        .slide {
+            min-height: 100vh;
+            scroll-snap-align: start;
+            display: grid;
+            align-content: center;
+            gap: 30px;
+            padding: 7vh 8vw;
+            border-bottom: 1px solid var(--line);
+        }
+        .title-slide {
+            background:
+                linear-gradient(115deg, rgba(15, 107, 77, .12), transparent 48%),
+                linear-gradient(25deg, rgba(217, 164, 65, .18), transparent 55%),
+                var(--paper);
+        }
+        h1, h2, h3, p { margin: 0; }
+        h1 {
+            max-width: 1100px;
+            font-size: clamp(3.2rem, 8vw, 7.2rem);
+            line-height: .98;
+            letter-spacing: 0;
+        }
+        h2 {
+            max-width: 1080px;
+            font-size: clamp(2.4rem, 5.5vw, 5.2rem);
+            line-height: 1.02;
+            letter-spacing: 0;
+        }
+        h3 {
+            font-size: 1.05rem;
+            letter-spacing: 0;
+        }
+        .eyebrow {
+            color: var(--green);
+            font-size: .78rem;
+            font-weight: 850;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+        .muted { color: var(--muted); }
+        .negative { color: var(--red); }
+        .lead {
+            max-width: 880px;
+            color: var(--muted);
+            font-size: clamp(1.15rem, 2vw, 1.55rem);
+        }
+        .topbar {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 2;
+            display: flex;
+            gap: 10px;
+        }
+        .topbar a {
+            color: var(--green);
+            background: rgba(255, 255, 255, .92);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 8px 12px;
+            text-decoration: none;
+            font-size: .85rem;
+            font-weight: 750;
+        }
+        .story-grid {
+            display: grid;
+            grid-template-columns: 1.05fr .95fr;
+            gap: 28px;
+            align-items: center;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .metric {
+            min-height: 126px;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 14px 40px rgba(23, 34, 29, .07);
+        }
+        .metric span {
+            color: var(--muted);
+            display: block;
+            font-size: .88rem;
+        }
+        .metric strong {
+            display: block;
+            margin-top: 10px;
+            font-size: clamp(1.45rem, 2.8vw, 2.35rem);
+            line-height: 1.05;
+        }
+        .chart-card {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 8px;
+            padding: 22px;
+            box-shadow: 0 18px 45px rgba(23, 34, 29, .08);
+        }
+        .bars {
+            display: grid;
+            gap: 16px;
+        }
+        .bar-row {
+            display: grid;
+            gap: 8px;
+        }
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            color: var(--muted);
+            font-size: .88rem;
+        }
+        .bar-track {
+            height: 18px;
+            border-radius: 999px;
+            background: #edf3ef;
+            overflow: hidden;
+        }
+        .bar {
+            width: var(--w);
+            min-width: 4px;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--green);
+        }
+        .bar.liquid { background: var(--teal); }
+        .bar.invested { background: var(--blue); }
+        .bar.liability { background: var(--gold); }
+        .bar.gap { background: var(--red); }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--muted);
+            font-size: .9rem;
+        }
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+        .swatch.liquid { background: var(--teal); }
+        .swatch.invested { background: var(--blue); }
+        .swatch.liability { background: var(--gold); }
+        .swatch.gap { background: var(--red); }
+        .timeline {
+            display: grid;
+            gap: 14px;
+            max-width: 1120px;
+        }
+        .event {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 18px;
+            align-items: start;
+            border: 1px solid var(--line);
+            background: var(--panel);
+            border-radius: 8px;
+            padding: 16px 18px;
+        }
+        .event time {
+            color: var(--green);
+            font-weight: 800;
+        }
+        .event p { color: var(--muted); }
+        .split-bars {
+            display: grid;
+            gap: 20px;
+        }
+        .mini-bars {
+            display: grid;
+            gap: 9px;
+        }
+        .question {
+            color: var(--muted);
+            font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+        }
+        @media (max-width: 850px) {
+            .story-grid, .metric-grid { grid-template-columns: 1fr; }
+            .slide { padding: 7vh 5vw; }
+            .event { grid-template-columns: 1fr; }
+        }
+        @media print {
+            .deck { height: auto; overflow: visible; }
+            .slide { min-height: 100vh; page-break-after: always; }
+            .topbar { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="topbar" aria-label="{% trans 'Deck actions' %}">
+        <a href="{% url 'planner:yearly_report' %}?year={{ report.selected_year }}">{% trans "Report" %}</a>
+        <a href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </nav>
+    <main class="deck">
+        <section class="slide title-slide">
+            <p class="eyebrow">{{ household.name }}</p>
+            <h1>{% trans "Our Financial Journey" %}</h1>
+            <p class="lead">{{ report.journey.headline }}. {% trans "A family-level view of where we start, what changes, and what retirement could look like." %}</p>
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "1. Where do we start?" %}</p>
+            <div class="story-grid">
+                <div>
+                    <h2>{% trans "Today is our baseline." %}</h2>
+                    <p class="lead">{% trans "This is the starting point the rest of the plan grows from: cash, investments, other assets, and liabilities." %}</p>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric"><span>{% trans "Liquid cash" %}</span><strong>{{ report.journey.start_month.liquid_balance|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "Depot and investments" %}</span><strong>{{ report.journey.start_month.invested_balance|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "Net worth" %}</span><strong>{{ report.journey.start_month.net_worth|money:household.currency }}</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "2. What is next year?" %}</p>
+            <div class="story-grid">
+                <div>
+                    <h2>{% blocktrans with label=report.journey.next_year.label %}{{ label }} is the first checkpoint.{% endblocktrans %}</h2>
+                    <p class="lead">{% trans "We look at cash pressure, income coverage, and whether the plan still feels easy to live with." %}</p>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric"><span>{% trans "Income" %}</span><strong>{{ report.journey.next_year.income|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "Cash goal gap" %}</span><strong class="{% if report.journey.next_year.cash_goal_gap > 0 %}negative{% endif %}">{{ report.journey.next_year.cash_goal_gap|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "Ending liquid" %}</span><strong class="{% if report.journey.next_year.ending_liquid_balance < 0 %}negative{% endif %}">{{ report.journey.next_year.ending_liquid_balance|money:household.currency }}</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "3. What is in five years?" %}</p>
+            <h2>{% trans "The medium-term shape matters more than one exact year." %}</h2>
+            <div class="chart-card">
+                <div class="legend">
+                    <span><i class="swatch"></i>{% trans "Net worth" %}</span>
+                    <span><i class="swatch liquid"></i>{% trans "Liquid" %}</span>
+                    <span><i class="swatch invested"></i>{% trans "Invested" %}</span>
+                    <span><i class="swatch liability"></i>{% trans "Liabilities" %}</span>
+                </div>
+                <div class="bars">
+                    {% for point in report.journey.chart_points %}
+                        <div class="bar-row">
+                            <div class="bar-label"><strong>{{ point.label }}</strong><span>{{ point.net_worth|money:household.currency }}</span></div>
+                            <div class="bar-track"><div class="bar" style="--w: {{ point.net_worth_width }}%;"></div></div>
+                            <div class="mini-bars">
+                                <div class="bar-track"><div class="bar liquid" style="--w: {{ point.liquid_width }}%;"></div></div>
+                                <div class="bar-track"><div class="bar invested" style="--w: {{ point.invested_width }}%;"></div></div>
+                                <div class="bar-track"><div class="bar liability" style="--w: {{ point.liability_width }}%;"></div></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "4. Which major changes happen?" %}</p>
+            <h2>{% trans "These are the dates that change the story." %}</h2>
+            <div class="timeline">
+                {% for event in report.journey.major_events %}
+                    <div class="event">
+                        <time>{{ event.month }}</time>
+                        <div>
+                            <h3>{{ event.label }}</h3>
+                            <p>{{ event.category }}{% if event.detail %}: {{ event.detail }}{% endif %}</p>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="event">
+                        <time>{% trans "None" %}</time>
+                        <div>
+                            <h3>{% trans "No major modeled events yet" %}</h3>
+                            <p>{% trans "Add child milestones, debt fixed-interest dates, planned payouts, retirement starts, or income changes to show the family timeline." %}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "5. What does retirement look like?" %}</p>
+            {% if report.journey.retirement_year %}
+                <h2>{% blocktrans with label=report.journey.retirement_year.label %}Retirement starts around {{ label }}.{% endblocktrans %}</h2>
+                <div class="metric-grid">
+                    <div class="metric"><span>{% trans "Retirement income" %}</span><strong>{{ report.journey.retirement_year.retirement_income|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "Cash goal" %}</span><strong>{{ report.journey.retirement_year.annual_cash_goal|money:household.currency }}</strong></div>
+                    <div class="metric"><span>{% trans "ETF draw need" %}</span><strong>{{ report.journey.retirement_year.cash_goal_gap|money:household.currency }}</strong></div>
+                </div>
+                <div class="chart-card">
+                    <div class="legend">
+                        <span><i class="swatch"></i>{% trans "Income" %}</span>
+                        <span><i class="swatch invested"></i>{% trans "Cash goal" %}</span>
+                        <span><i class="swatch gap"></i>{% trans "ETF draw need" %}</span>
+                    </div>
+                    <div class="split-bars">
+                        {% for point in report.journey.retirement_points %}
+                            <div class="bar-row">
+                                <div class="bar-label"><strong>{{ point.label }}</strong><span>{% blocktrans with percent=point.draw_percent|floatformat:2 %}Draw {{ percent }}%{% endblocktrans %}</span></div>
+                                <div class="bar-track"><div class="bar" style="--w: {{ point.income_width }}%;"></div></div>
+                                <div class="bar-track"><div class="bar invested" style="--w: {{ point.goal_width }}%;"></div></div>
+                                <div class="bar-track"><div class="bar gap" style="--w: {{ point.gap_width }}%;"></div></div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <h2>{% trans "Retirement is not modeled yet." %}</h2>
+                <p class="lead">{% trans "Add retirement plans for the adults so this deck can show retirement income, cash-goal coverage, and ETF draw needs." %}</p>
+            {% endif %}
+        </section>
+
+        <section class="slide">
+            <p class="eyebrow">{% trans "What should we decide?" %}</p>
+            <h2>{% trans "Use the clone to compare different futures." %}</h2>
+            <p class="lead">{% trans "For example: keep cash higher, repay debt faster, buy more ETFs, sell a property, or change retirement timing. Each cloned household can become one version of the family story." %}</p>
+        </section>
+    </main>
+    <script>
+        document.addEventListener("keydown", (event) => {
+            if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) return;
+            const direction = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1;
+            window.scrollBy({ top: direction * window.innerHeight, behavior: "smooth" });
+        });
+    </script>
+</body>
+</html>

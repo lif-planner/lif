@@ -1,0 +1,543 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Imports" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "source" as source_label %}
+{% trans "Default" as default_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Import center" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Dry-run imports before changing planning data." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+        <a class="button secondary" href="{% url 'planner:import_runbook' %}">{% trans "Runbook" %}</a>
+        <a class="button secondary" href="{% url 'planner:reconciliation_center' %}">{% trans "Reconciliation" %}</a>
+        <a class="button secondary" href="{% url 'planner:moneymoney_mappings' %}">{% trans "MoneyMoney mappings" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Data Quality" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "CSV accounts" %}</span>
+        <strong>{% trans "Preview + apply" %}</strong>
+        <small>{% trans "Dry-run first, then apply clean batches with a backup." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "CSV depot holdings" %}</span>
+        <strong>{% trans "Preview + apply" %}</strong>
+        <small>{% trans "Import ETF, stock, and bond positions after the depot account exists." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "MoneyMoney" %}</span>
+        {% if feature_flags.moneymoney_import %}
+            <strong>{% trans "Preview" %}</strong>
+            <small>{% trans "Run local py-money dry-runs for accounts and depot holdings." %}</small>
+        {% else %}
+            <strong>{% trans "Flagged" %}</strong>
+            <small>{% trans "Enable moneymoney_import when live connector work starts." %}</small>
+        {% endif %}
+    </div>
+    <div class="metric">
+        <span>YNAB</span>
+        <strong>{% trans "Planned" %}</strong>
+        <small>{% trans "Foundation sync will start with preview-first imports." %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Reconciliation Status" %}</h2>
+        {% if reconciliation.next_item %}
+            <span class="status-pill {{ reconciliation.next_item.severity }}">{% trans "next" %}</span>
+        {% else %}
+            <span class="status-pill ok">{% trans "clear" %}</span>
+        {% endif %}
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Ready to apply" %}</span>
+            <strong>{{ reconciliation.clean_pending_batches|length }}</strong>
+            <small>{% blocktrans count count=reconciliation.clean_pending_batches|length %}Dry-run batch with no row warnings.{% plural %}Dry-run batches with no row warnings.{% endblocktrans %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Needs review" %}</span>
+            <strong class="{% if reconciliation.warning_pending_batches %}negative{% endif %}">{{ reconciliation.warning_pending_batches|length }}</strong>
+            <small>{% blocktrans count count=reconciliation.warning_pending_batches|length %}Valid batch has warnings to inspect.{% plural %}Valid batches have warnings to inspect.{% endblocktrans %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Blocked" %}</span>
+            <strong class="{% if reconciliation.blocked_batches %}negative{% endif %}">{{ reconciliation.blocked_batches|length }}</strong>
+            <small>{% blocktrans count count=reconciliation.blocked_batches|length %}Batch with errors or missing columns.{% plural %}Batches with errors or missing columns.{% endblocktrans %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Latest accounts apply" %}</span>
+            <strong>{% if reconciliation.latest_applied_account_batch %}#{{ reconciliation.latest_applied_account_batch.pk }}{% else %}-{% endif %}</strong>
+            <small>{% if reconciliation.latest_applied_account_batch %}{{ reconciliation.latest_applied_account_batch.created_at|date:"Y-m-d H:i" }}{% else %}{% trans "No applied account import yet." %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Latest holdings apply" %}</span>
+            <strong>{% if reconciliation.latest_applied_holding_batch %}#{{ reconciliation.latest_applied_holding_batch.pk }}{% else %}-{% endif %}</strong>
+            <small>{% if reconciliation.latest_applied_holding_batch %}{{ reconciliation.latest_applied_holding_batch.created_at|date:"Y-m-d H:i" }}{% else %}{% trans "No applied holdings import yet." %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Stale valuations" %}</span>
+            <strong class="{% if reconciliation.stale_accounts %}negative{% endif %}">{{ reconciliation.stale_accounts|length }}</strong>
+            <small>{% trans "Account date older than 45 days." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Depot mismatches" %}</span>
+            <strong class="{% if reconciliation.depot_differences %}negative{% endif %}">{{ reconciliation.depot_differences|length }}</strong>
+            <small>{% trans "Account balance differs from summed holdings." %}</small>
+        </div>
+    </div>
+    {% if reconciliation.next_item %}
+        <div class="issue-row {{ reconciliation.next_item.severity }}">
+            <div>
+                <span class="status-pill {{ reconciliation.next_item.severity }}">{% trans "next" %}</span>
+                <h3>{{ reconciliation.next_item.label }}</h3>
+                <p class="muted">{{ reconciliation.next_item.detail }}</p>
+            </div>
+            <a class="button secondary" href="{% url 'planner:import_runbook' %}">{% trans "Open runbook" %}</a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Accounts CSV Dry-Run" %}</h2>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="form-panel">
+            {% csrf_token %}
+            <input type="hidden" name="import_kind" value="accounts">
+            <p class="form-hint">{% blocktrans with columns=account_columns %}Expected columns: {{ columns }}.{% endblocktrans %}</p>
+            {{ account_form.as_div }}
+            <div class="form-actions">
+                <button class="button" type="submit">{% trans "Preview accounts CSV" %}</button>
+            </div>
+        </form>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Format" %}</h2>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Column" %}</th>
+                        <th>{% trans "Example" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>name</td><td>Giro</td></tr>
+                    <tr><td>account_type</td><td>cash</td></tr>
+                    <tr><td>balance</td><td>12000.00</td></tr>
+                    <tr><td>currency</td><td>EUR</td></tr>
+                    <tr><td>institution</td><td>DKB</td></tr>
+                    <tr><td>as_of_date</td><td>2026-06-25</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Depot Holdings CSV Dry-Run" %}</h2>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="form-panel">
+            {% csrf_token %}
+            <input type="hidden" name="import_kind" value="depot_holdings">
+            <p class="form-hint">{% blocktrans with columns=depot_holding_columns optional=depot_holding_optional_columns %}Expected columns: {{ columns }}. Optional: {{ optional }}.{% endblocktrans %}</p>
+            {{ depot_holding_form.as_div }}
+            <div class="form-actions">
+                <button class="button" type="submit">{% trans "Preview holdings CSV" %}</button>
+            </div>
+        </form>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Holding Format" %}</h2>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Column" %}</th>
+                        <th>{% trans "Example" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>account_name</td><td>ING Depot</td></tr>
+                    <tr><td>name</td><td>Vanguard FTSE All-World</td></tr>
+                    <tr><td>isin</td><td>IE00B3RBWM25</td></tr>
+                    <tr><td>ticker</td><td>VGWL</td></tr>
+                    <tr><td>asset_class</td><td>ETF distributing</td></tr>
+                    <tr><td>quantity</td><td>120.500000</td></tr>
+                    <tr><td>latest_price</td><td>118.42</td></tr>
+                    <tr><td>currency</td><td>EUR</td></tr>
+                    <tr><td>as_of_date</td><td>2026-06-25</td></tr>
+                    <tr><td>payout_date</td><td>2031-12-15</td></tr>
+                    <tr><td>payout_amount</td><td>30000.00</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+{% if feature_flags.moneymoney_import %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "MoneyMoney Connector" %}</h2>
+        <span class="status-pill info">{% trans "local only" %}</span>
+    </div>
+    <div class="empty-state">
+        <h3>{% trans "Preview from the local MoneyMoney app" %}</h3>
+        <p class="muted">
+            {% trans "These actions use py-money on this Mac. Discover accounts first, disable old or irrelevant sources, then create dry-run import batches." %}
+        </p>
+        <div class="form-actions">
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="import_kind" value="moneymoney_diagnostics">
+                <button class="button secondary" type="submit">{% trans "Run diagnostics" %}</button>
+            </form>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="import_kind" value="moneymoney_discover_accounts">
+                <button class="button secondary" type="submit">{% trans "Discover accounts for selection" %}</button>
+            </form>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="import_kind" value="moneymoney_accounts">
+                <button class="button" type="submit">{% trans "Preview MoneyMoney accounts" %}</button>
+            </form>
+            <form method="post" class="inline-form">
+                {% csrf_token %}
+                <input type="hidden" name="import_kind" value="moneymoney_depot_holdings">
+                <button class="button secondary" type="submit">{% trans "Preview MoneyMoney depot holdings" %}</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+{% if moneymoney_diagnostics %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "MoneyMoney Diagnostics" %}</h2>
+        <span class="status-pill {% if moneymoney_diagnostics.reachable %}ok{% else %}critical{% endif %}">
+            {% if moneymoney_diagnostics.reachable %}{% trans "reachable" %}{% else %}{% trans "blocked" %}{% endif %}
+        </span>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>py-money</span>
+            <strong>{% if moneymoney_diagnostics.py_money_installed %}{% trans "Installed" %}{% else %}{% trans "Missing" %}{% endif %}</strong>
+            <small>{% trans "Installed only on the Mac that can access MoneyMoney." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Accounts" %}</span>
+            <strong>{{ moneymoney_diagnostics.account_count }}</strong>
+            <small>{% trans "Non-portfolio MoneyMoney accounts." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Portfolios" %}</span>
+            <strong>{{ moneymoney_diagnostics.portfolio_count }}</strong>
+            <small>{% trans "Depot-like MoneyMoney portfolios." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Positions" %}</span>
+            <strong>{{ moneymoney_diagnostics.position_count }}</strong>
+            <small>{% trans "Portfolio positions found." %}</small>
+        </div>
+    </div>
+    {% if moneymoney_diagnostics.error %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "error" %}</span>
+                <h3>{% trans "Connector error" %}</h3>
+                <p class="muted">{{ moneymoney_diagnostics.error }}</p>
+            </div>
+        </div>
+    {% endif %}
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "MoneyMoney Account Selection" %}</h2>
+        <a class="button secondary" href="{% url 'planner:moneymoney_mappings' %}">{% trans "Edit mappings" %}</a>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Discovered" %}</span>
+            <strong>{{ moneymoney_mapping_review.rows|length }}</strong>
+            <small>{% trans "Source accounts and portfolios known to LiF." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Enabled" %}</span>
+            <strong>{{ moneymoney_mapping_review.import_enabled_count }}</strong>
+            <small>{% trans "Will be included in MoneyMoney previews." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Disabled" %}</span>
+            <strong>{{ moneymoney_mapping_review.disabled_count }}</strong>
+            <small>{% trans "Old cards and accounts skipped by previews." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Needs review" %}</span>
+            <strong class="{% if moneymoney_mapping_review.needs_review_count %}negative{% endif %}">{{ moneymoney_mapping_review.needs_review_count }}</strong>
+            <small>{% trans "Enabled accounts still using a cash default." %}</small>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "MoneyMoney account" %}</th>
+                    <th>{% trans "Import" %}</th>
+                    <th>{% trans "LiF type" %}</th>
+                    <th>{% trans "Notes" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in moneymoney_mapping_review.rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.account_name }}</strong>
+                            <small>{{ row.source_kind|default:source_label }} · {{ row.source_key }}</small>
+                        </td>
+                        <td>{% if row.import_enabled %}{% trans "Enabled" %}{% else %}{% trans "Disabled" %}{% endif %}</td>
+                        <td>{{ row.effective_type|default:default_label }}</td>
+                        <td>
+                            {% if row.needs_review %}
+                                <span class="status-pill warning">{% trans "default cash" %}</span>
+                            {% elif not row.import_enabled %}
+                                <span class="status-pill neutral">{% trans "disabled" %}</span>
+                            {% elif row.has_mapping %}
+                                <span class="status-pill ok">{% trans "mapped" %}</span>
+                            {% else %}
+                                <span class="status-pill info">{% trans "default" %}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4">{% trans "No selections yet. Run discovery to list MoneyMoney accounts before creating import batches." %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if result %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Dry-Run Result" %}</h2>
+        <span class="muted">
+            {% blocktrans with valid=result.valid_count %}{{ valid }} valid{% endblocktrans %} · {% blocktrans count count=result.warning_count %}{{ count }} warning{% plural %}{{ count }} warnings{% endblocktrans %} · {% blocktrans count count=result.error_count %}{{ count }} error{% plural %}{{ count }} errors{% endblocktrans %}
+        </span>
+    </div>
+    {% if result.missing_columns %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "critical" %}</span>
+                <h3>{% trans "Missing required columns" %}</h3>
+                <p class="muted">{{ result.missing_columns|join:", " }}</p>
+            </div>
+        </div>
+    {% else %}
+        <div class="metrics compact">
+            <div class="metric">
+                <span>{% trans "Create" %}</span>
+                <strong>{{ result.action_counts.create|default:0 }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Update" %}</span>
+                <strong>{{ result.action_counts.update|default:0 }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Unchanged" %}</span>
+                <strong>{{ result.action_counts.unchanged|default:0 }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Warnings" %}</span>
+                <strong>{{ result.action_counts.warning|default:0 }}</strong>
+            </div>
+            <div class="metric">
+                <span>{% trans "Errors" %}</span>
+                <strong class="{% if result.action_counts.error %}negative{% endif %}">{{ result.action_counts.error|default:0 }}</strong>
+            </div>
+        </div>
+        <div class="form-hint">
+            {% trans "Applying a clean batch creates a backup first. Review update rows carefully: they show old values next to imported values before anything changes." %}
+        </div>
+        <div class="table-wrap">
+            <table>
+                {% if import_kind == "depot_holdings" or import_kind == "moneymoney_depot_holdings" %}
+                    <thead>
+                        <tr>
+                            <th>{% trans "Row" %}</th>
+                            <th>{% trans "Action" %}</th>
+                            <th>{% trans "Depot" %}</th>
+                            <th>{% trans "Name" %}</th>
+                            <th>ISIN</th>
+                            <th>{% trans "Ticker" %}</th>
+                            <th>{% trans "Class" %}</th>
+                            <th>{% trans "Quantity" %}</th>
+                            <th>{% trans "Price" %}</th>
+                            <th>{% trans "Existing value" %}</th>
+                            <th>{% trans "New value" %}</th>
+                            <th>{% trans "As of" %}</th>
+                            <th>{% trans "Payout" %}</th>
+                            <th>{% trans "Payout amount" %}</th>
+                            <th>{% trans "Changed fields" %}</th>
+                            <th>{% trans "Warnings" %}</th>
+                            <th>{% trans "Errors" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.rows %}
+                            <tr>
+                                <td>{{ row.row_number }}</td>
+                                <td><span class="status-pill {{ row.status }}">{{ row.action }}</span></td>
+                                <td>{{ row.values.account_name }}</td>
+                                <td>{{ row.values.name }}</td>
+                                <td>{{ row.values.isin|default:"-" }}</td>
+                                <td>{{ row.values.ticker|default:"-" }}</td>
+                                <td>{{ row.values.asset_class }}</td>
+                                <td>{{ row.values.quantity }}</td>
+                                <td>{{ row.values.latest_price }} {{ row.values.currency }}</td>
+                                <td>{% if row.existing_values.current_value %}{{ row.existing_values.current_value }} {{ row.existing_values.currency }}{% else %}-{% endif %}</td>
+                                <td>{% if row.values.quantity and row.values.latest_price %}{{ row.values.quantity }} x {{ row.values.latest_price }} {{ row.values.currency }}{% else %}-{% endif %}</td>
+                                <td>{{ row.values.as_of_date|default:"-" }}</td>
+                                <td>{{ row.values.payout_date|default:"-" }}</td>
+                                <td>{{ row.values.payout_amount|default:"-" }}</td>
+                                <td>{% if row.changes %}{{ row.changes.keys|join:", " }}{% else %}-{% endif %}</td>
+                                <td>{% if row.warnings %}{{ row.warnings|join:" " }}{% else %}-{% endif %}</td>
+                                <td>{% if row.errors %}{{ row.errors|join:" " }}{% else %}-{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                {% else %}
+                    <thead>
+                        <tr>
+                            <th>{% trans "Row" %}</th>
+                            <th>{% trans "Action" %}</th>
+                            <th>{% trans "Name" %}</th>
+                            <th>{% trans "Type" %}</th>
+                            <th>{% trans "Old balance" %}</th>
+                            <th>{% trans "Balance" %}</th>
+                            <th>{% trans "Currency" %}</th>
+                            <th>{% trans "Institution" %}</th>
+                            <th>{% trans "As of" %}</th>
+                            <th>{% trans "Changed fields" %}</th>
+                            <th>{% trans "Warnings" %}</th>
+                            <th>{% trans "Errors" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.rows %}
+                            <tr>
+                                <td>{{ row.row_number }}</td>
+                                <td><span class="status-pill {{ row.status }}">{{ row.action }}</span></td>
+                                <td>{{ row.values.name }}</td>
+                                <td>{{ row.values.account_type }}</td>
+                                <td>{% if row.existing_values.balance %}{{ row.existing_values.balance }} {{ row.existing_values.currency }}{% else %}-{% endif %}</td>
+                                <td>{{ row.values.balance }}</td>
+                                <td>{{ row.values.currency }}</td>
+                                <td>{{ row.values.institution }}</td>
+                                <td>{{ row.values.as_of_date|default:"-" }}</td>
+                                <td>{% if row.changes %}{{ row.changes.keys|join:", " }}{% else %}-{% endif %}</td>
+                                <td>{% if row.warnings %}{{ row.warnings|join:" " }}{% else %}-{% endif %}</td>
+                                <td>{% if row.errors %}{{ row.errors|join:" " }}{% else %}-{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                {% endif %}
+            </table>
+        </div>
+        {% if batch and batch.error_count == 0 and batch.row_count > 0 %}
+            <form method="post" action="{% url 'planner:import_batch_apply' batch.pk %}" class="form-actions">
+                {% csrf_token %}
+                <button class="button" type="submit">{% trans "Apply clean batch" %}</button>
+                <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Review quality" %}</a>
+            </form>
+        {% endif %}
+    {% endif %}
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Recent Import Batches" %}</h2>
+        {% if batch %}<span class="muted">{% blocktrans with pk=batch.pk %}Latest batch #{{ pk }}{% endblocktrans %}</span>{% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Created" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Kind" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Filename" %}</th>
+                    <th>{% trans "Rows" %}</th>
+                    <th>{% trans "Valid" %}</th>
+                    <th>{% trans "Warnings" %}</th>
+                    <th>{% trans "Errors" %}</th>
+                    <th>{% trans "Applied" %}</th>
+                    <th>{% trans "Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recent_batches %}
+                    <tr>
+                        <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ item.get_source_display }}</td>
+                        <td>{{ item.kind_label }}</td>
+                        <td><span class="status-pill {{ item.status_severity }}">{{ item.get_status_display }}</span></td>
+                        <td><a href="{% url 'planner:import_batch_detail' item.pk %}">{{ item.filename|default:"-" }}</a></td>
+                        <td>{{ item.row_count }}</td>
+                        <td>{{ item.valid_count }}</td>
+                        <td>{{ item.warning_count }}</td>
+                        <td>{{ item.error_count }}</td>
+                        <td>
+                            {% if item.summary.apply_result %}
+                                {% blocktrans with created=item.summary.apply_result.created_count updated=item.summary.apply_result.updated_count %}{{ created }} created · {{ updated }} updated{% endblocktrans %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class="button secondary" href="{% url 'planner:import_batch_detail' item.pk %}">{% trans "View" %}</a>
+                            {% if item.can_apply %}
+                                <form method="post" action="{% url 'planner:import_batch_apply' item.pk %}" class="inline-form">
+                                    {% csrf_token %}
+                                    <button class="button secondary" type="submit">{% trans "Apply" %}</button>
+                                </form>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11">{% trans "No imports yet." %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

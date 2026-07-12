@@ -1,0 +1,33 @@
+name: Deploy Mac Mini
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: lif-macmini-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy LiF
+        working-directory: /Users/YOUR_USERNAME/Services/LiF
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main
+          git reset --hard origin/main
+
+          set -a
+          source /Users/YOUR_USERNAME/.config/lif/lif.env
+          set +a
+
+          pipenv install
+          pipenv run python manage.py test
+          pipenv run python manage.py deploy_local
+          launchctl kickstart -k "gui/$(id -u)/com.example.lif"
+          pipenv run python manage.py smoke_test

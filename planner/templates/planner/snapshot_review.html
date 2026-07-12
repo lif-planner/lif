@@ -1,0 +1,235 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Annual Review" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Annual Review" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Compare two frozen snapshots to see whether reality followed the plan." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+{% if snapshots|length < 2 %}
+    <section class="empty-state">
+        <h2>{% trans "Two snapshots needed" %}</h2>
+        <p class="muted">{% trans "Create at least two snapshots before running an annual review." %}</p>
+    </section>
+{% else %}
+    <section>
+        <form method="get" class="form-panel">
+            <div class="form-grid">
+                <div>
+                    <label for="baseline">{% trans "Baseline snapshot" %}</label>
+                    <select id="baseline" name="baseline">
+                        {% for snapshot in snapshots %}
+                            <option value="{{ snapshot.pk }}" {% if baseline.pk == snapshot.pk %}selected{% endif %}>
+                                {{ snapshot.snapshot_date|date:"Y-m-d" }} · {{ snapshot.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="comparison">{% trans "Comparison snapshot" %}</label>
+                    <select id="comparison" name="comparison">
+                        {% for snapshot in snapshots %}
+                            <option value="{{ snapshot.pk }}" {% if comparison.pk == snapshot.pk %}selected{% endif %}>
+                                {{ snapshot.snapshot_date|date:"Y-m-d" }} · {{ snapshot.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="button" type="submit">{% trans "Compare snapshots" %}</button>
+            </div>
+        </form>
+    </section>
+
+    {% if review %}
+        <section class="metrics">
+            {% for total in review.totals %}
+                <div class="metric">
+                    <span>{{ total.label }}</span>
+                    <strong>{{ total.current_value }} {{ review.currency }}</strong>
+                    <small>{{ baseline.name }} {{ total.snapshot_value }} · {% trans "Delta" %} <span class="{% if total.direction == 'negative' %}negative{% endif %}">{{ total.delta }}</span></small>
+                </div>
+            {% endfor %}
+        </section>
+
+        <section>
+            <div class="section-heading">
+                <h2>{% trans "Accounts" %}</h2>
+                <span class="muted">{% blocktrans with start=baseline.snapshot_date|date:"Y-m-d" end=comparison.snapshot_date|date:"Y-m-d" %}{{ start }} to {{ end }}{% endblocktrans %}</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{% trans "Account" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Baseline" %}</th>
+                            <th>{% trans "Comparison" %}</th>
+                            <th>{% trans "Delta" %}</th>
+                            <th>{% trans "Type" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in review.accounts %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                                <td>{{ row.snapshot_value }} {{ review.currency }}</td>
+                                <td>{{ row.current_value }} {{ review.currency }}</td>
+                                <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ review.currency }}</td>
+                                <td>{{ row.display_type|default:"-" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="6">{% trans "No accounts to compare." %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-heading">
+                <h2>{% trans "Holdings" %}</h2>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>{% trans "Holding" %}</th>
+                            <th>{% trans "Status" %}</th>
+                            <th>{% trans "Baseline" %}</th>
+                            <th>{% trans "Comparison" %}</th>
+                            <th>{% trans "Delta" %}</th>
+                            <th>ISIN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in review.holdings %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                                <td>{{ row.snapshot_value }} {{ review.currency }}</td>
+                                <td>{{ row.current_value }} {{ review.currency }}</td>
+                                <td class="{% if row.direction == 'negative' %}negative{% endif %}">{{ row.delta }} {{ review.currency }}</td>
+                                <td>{{ row.display_isin|default:"-" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="6">{% trans "No holdings to compare." %}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grid two">
+            <div>
+                <div class="section-heading">
+                    <h2>{% trans "Review Notes" %}</h2>
+                    {% if saved_review %}
+                        <span class="status-pill ok">{% trans "saved" %}</span>
+                    {% else %}
+                        <span class="status-pill info">{% trans "draft" %}</span>
+                    {% endif %}
+                </div>
+                <form method="post" class="form-panel">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="save_review">
+                    <input type="hidden" name="baseline" value="{{ baseline.pk }}">
+                    <input type="hidden" name="comparison" value="{{ comparison.pk }}">
+                    {{ review_form.as_div }}
+                    <div class="form-actions">
+                        <button class="button" type="submit">{% trans "Save review" %}</button>
+                    </div>
+                </form>
+            </div>
+            <div>
+                <div class="section-heading">
+                    <h2>{% trans "Saved Reviews" %}</h2>
+                </div>
+                <div class="list">
+                    {% for item in saved_reviews %}
+                        <a class="list-row" href="{% url 'planner:snapshot_review' %}?baseline={{ item.baseline_snapshot.pk }}&comparison={{ item.comparison_snapshot.pk }}">
+                            <span>
+                                <strong>{{ item.title }}</strong><br>
+                                <small>{% blocktrans with start=item.baseline_snapshot.snapshot_date|date:"Y-m-d" end=item.comparison_snapshot.snapshot_date|date:"Y-m-d" %}{{ start }} to {{ end }}{% endblocktrans %}</small>
+                            </span>
+                            <small>{{ item.review_date|date:"Y-m-d" }}</small>
+                        </a>
+                    {% empty %}
+                        <div class="list-row">
+                            <span>{% trans "No saved reviews yet." %}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        {% if saved_review %}
+        <section class="grid two">
+            <div>
+                <div class="section-heading">
+                    <h2>{% trans "Review Actions" %}</h2>
+                </div>
+                <div class="list">
+                    {% for item in review_actions %}
+                        <div class="list-row">
+                            <span>
+                                <strong>{{ item.title }}</strong><br>
+                                <small>
+                                    {{ item.get_status_display }}
+                                    {% if item.owner %} · {{ item.owner.name }}{% endif %}
+                                    {% if item.due_date %} · {% blocktrans with date=item.due_date|date:"Y-m-d" %}due {{ date }}{% endblocktrans %}{% endif %}
+                                </small>
+                            </span>
+                            <form method="post" class="inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_review_action">
+                                <input type="hidden" name="baseline" value="{{ baseline.pk }}">
+                                <input type="hidden" name="comparison" value="{{ comparison.pk }}">
+                                <input type="hidden" name="review_action_id" value="{{ item.pk }}">
+                                {% if item.status == "open" %}
+                                    <button class="button secondary" type="submit" name="status" value="done">{% trans "Done" %}</button>
+                                    <button class="button secondary" type="submit" name="status" value="skipped">{% trans "Skip" %}</button>
+                                {% else %}
+                                    <button class="button secondary" type="submit" name="status" value="open">{% trans "Reopen" %}</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    {% empty %}
+                        <div class="list-row">
+                            <span>{% trans "No review actions yet." %}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <div class="section-heading">
+                    <h2>{% trans "Add Action" %}</h2>
+                </div>
+                <form method="post" class="form-panel">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_review_action">
+                    <input type="hidden" name="baseline" value="{{ baseline.pk }}">
+                    <input type="hidden" name="comparison" value="{{ comparison.pk }}">
+                    {{ action_form.as_div }}
+                    <div class="form-actions">
+                        <button class="button" type="submit">{% trans "Add action" %}</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        {% endif %}
+    {% endif %}
+{% endif %}
+{% endblock %}

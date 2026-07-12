@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}Breadcrumb trail. Pass `section` (plain label for the area, optional
+`section_url`) and `current` (this page's title).{% endcomment %}
+<nav class="breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+    <a href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    {% if section %}
+        <span class="breadcrumb-sep" aria-hidden="true">›</span>
+        {% if section_url %}<a href="{{ section_url }}">{{ section }}</a>{% else %}<span>{{ section }}</span>{% endif %}
+    {% endif %}
+    <span class="breadcrumb-sep" aria-hidden="true">›</span>
+    <span aria-current="page">{{ current }}</span>
+</nav>

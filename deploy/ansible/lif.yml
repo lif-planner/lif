@@ -1,0 +1,298 @@
+---
+- name: Deploy LiF container
+  hosts: lif
+  become: true
+
+  pre_tasks:
+    - name: Apply deployment defaults
+      ansible.builtin.set_fact:
+        lif_repo_url: "{{ lif_repo_url | default('git@github.com:lif-planner/lif.git') }}"
+        lif_repo_version: "{{ lif_repo_version | default('main') }}"
+        lif_app_dir: "{{ lif_app_dir | default('/opt/lif') }}"
+        lif_app_user: "{{ lif_app_user | default(ansible_user | default(ansible_env.USER)) }}"
+        lif_app_group: "{{ lif_app_group | default(lif_app_user | default(ansible_user | default(ansible_env.USER))) }}"
+        lif_container_port: "{{ lif_container_port | default(80) }}"
+        lif_django_allowed_hosts: "{{ lif_django_allowed_hosts | default(['127.0.0.1', 'localhost']) }}"
+        lif_django_csrf_trusted_origins: "{{ lif_django_csrf_trusted_origins | default([]) }}"
+        lif_trust_proxy_ssl_header: "{{ lif_trust_proxy_ssl_header | default(false) }}"
+        lif_require_login: "{{ lif_require_login | default(true) }}"
+        lif_django_debug: "{{ lif_django_debug | default(false) }}"
+        lif_version_label: "{{ lif_version_label | default('ansible-container') }}"
+        lif_demo_deployment: "{{ lif_demo_deployment | default(false) }}"
+        lif_demo_require_login: "{{ lif_demo_require_login | default(false) }}"
+        lif_demo_username: "{{ lif_demo_username | default('demo') }}"
+        lif_demo_email: "{{ lif_demo_email | default('demo@example.invalid') }}"
+        lif_create_predeploy_backup: "{{ lif_create_predeploy_backup | default(true) }}"
+        lif_feature_flags: "{{ lif_feature_flags | default({}) }}"
+        lif_compose_package_candidates: "{{ lif_compose_package_candidates | default(['docker-compose-plugin', 'docker-compose-v2', 'docker-compose']) }}"
+
+    - name: Ensure required secret is configured
+      ansible.builtin.assert:
+        that:
+          - lif_django_secret_key is defined
+          - lif_django_secret_key | length >= 32
+          - lif_django_secret_key != 'replace-with-a-long-random-secret'
+        fail_msg: "Set lif_django_secret_key in encrypted group_vars/lif/vault.yml before deploying."
+      no_log: true
+
+    - name: Ensure supported OS family
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == 'Debian'
+        fail_msg: "This playbook currently supports Debian/Ubuntu-style Proxmox LXC hosts."
+
+    - name: Ensure demo password is configured when demo login is enabled
+      ansible.builtin.assert:
+        that:
+          - not (lif_demo_deployment | bool and lif_demo_require_login | bool) or lif_demo_password is defined
+          - not (lif_demo_deployment | bool and lif_demo_require_login | bool) or lif_demo_password | length >= 12
+          - not (lif_demo_deployment | bool and lif_demo_require_login | bool) or lif_demo_password != 'replace-with-a-demo-password-of-at-least-12-characters'
+        fail_msg: "Set lif_demo_password in encrypted group_vars/lif/vault.yml when lif_demo_deployment and lif_demo_require_login are both true."
+      no_log: true
+
+  tasks:
+    - name: Build effective login mode
+      ansible.builtin.set_fact:
+        lif_effective_require_login: "{{ lif_demo_require_login | bool if lif_demo_deployment | bool else lif_require_login | bool }}"
+
+    - name: Build effective Django allowed hosts
+      ansible.builtin.set_fact:
+        lif_effective_django_allowed_hosts: >-
+          {{
+            (
+              lif_django_allowed_hosts
+              + [ansible_host | default('')]
+              + [inventory_hostname]
+            )
+            | reject('equalto', '')
+            | unique
+            | list
+          }}
+
+    - name: Install base host packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - git
+          - docker.io
+        state: present
+        update_cache: true
+
+    - name: Try available Docker Compose package names
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ lif_compose_package_candidates }}"
+      register: lif_compose_package_attempts
+      failed_when: false
+
+    - name: Check Docker Compose v2 command
+      ansible.builtin.command: docker compose version
+      register: lif_compose_v2_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check legacy docker-compose command
+      ansible.builtin.command: docker-compose version
+      register: lif_compose_legacy_check
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure a Docker Compose command is available
+      ansible.builtin.assert:
+        that:
+          - lif_compose_v2_check.rc == 0 or lif_compose_legacy_check.rc == 0
+        fail_msg: "Docker installed, but no working Compose command was found. Install docker-compose-plugin, docker-compose-v2, or docker-compose on the LXC."
+
+    - name: Select Docker Compose command
+      ansible.builtin.set_fact:
+        lif_compose_command: "{{ 'docker compose' if lif_compose_v2_check.rc == 0 else 'docker-compose' }}"
+
+    - name: Enable Docker service
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Ensure deployment parent exists
+      ansible.builtin.file:
+        path: "{{ lif_app_dir | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure deployment directory exists
+      ansible.builtin.file:
+        path: "{{ lif_app_dir }}"
+        state: directory
+        owner: "{{ lif_app_user }}"
+        group: "{{ lif_app_group }}"
+        mode: "0755"
+
+    - name: Check whether deployment checkout exists
+      ansible.builtin.stat:
+        path: "{{ lif_app_dir }}/.git"
+      register: lif_checkout
+
+    - name: Create pre-deploy backup when app is already installed
+      ansible.builtin.command: "{{ lif_compose_command }} exec -T lif python manage.py backup_data --label ansible-predeploy"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      changed_when: "'Created backup' in lif_predeploy_backup.stdout"
+      failed_when: false
+      register: lif_predeploy_backup
+      when:
+        - lif_create_predeploy_backup | bool
+        - lif_checkout.stat.exists
+
+    - name: Checkout or update LiF
+      ansible.builtin.git:
+        repo: "{{ lif_repo_url }}"
+        dest: "{{ lif_app_dir }}"
+        version: "{{ lif_repo_version }}"
+        update: true
+        accept_hostkey: true
+      become_user: "{{ lif_app_user }}"
+      register: lif_git
+
+    - name: Ensure persistent data directories exist
+      ansible.builtin.file:
+        path: "{{ lif_app_dir }}/{{ item }}"
+        state: directory
+        owner: "{{ lif_app_user }}"
+        group: "{{ lif_app_group }}"
+        mode: "0750"
+      loop:
+        - data
+        - data/backups
+        - data/staticfiles
+        - docker
+
+    - name: Render private container environment
+      ansible.builtin.template:
+        src: templates/lif.env.j2
+        dest: "{{ lif_app_dir }}/docker/lif.env"
+        owner: "{{ lif_app_user }}"
+        group: "{{ lif_app_group }}"
+        mode: "0600"
+      no_log: true
+      register: lif_env
+
+    - name: Render Compose environment
+      ansible.builtin.template:
+        src: templates/compose.env.j2
+        dest: "{{ lif_app_dir }}/.env"
+        owner: "{{ lif_app_user }}"
+        group: "{{ lif_app_group }}"
+        mode: "0644"
+      register: lif_compose_env
+
+    - name: Build and start LiF container
+      ansible.builtin.command: "{{ lif_compose_command }} up -d --build --force-recreate"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      register: lif_compose
+      changed_when: >
+        'Building' in lif_compose.stdout
+        or 'Recreated' in lif_compose.stdout
+        or 'Created' in lif_compose.stdout
+        or 'Started' in lif_compose.stdout
+        or lif_git.changed
+        or lif_env.changed
+        or lif_compose_env.changed
+
+    - name: Wait for LiF health endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ lif_container_port }}/health/"
+        status_code: 200
+        return_content: true
+      register: lif_health
+      retries: 20
+      delay: 3
+      until: lif_health.status == 200
+
+    - name: Reset and seed demo household data
+      ansible.builtin.command: "{{ lif_compose_command }} exec -T lif python manage.py reset_demo_data"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      register: lif_seed_demo
+      changed_when: "'Reset demo data' in lif_seed_demo.stdout"
+      when: lif_demo_deployment | bool
+
+    - name: Create or update demo login user
+      ansible.builtin.command: >-
+        {{ lif_compose_command }} exec -T
+        -e LIF_ALLOW_DEMO_USER=1
+        -e LIF_DEMO_PASSWORD={{ lif_demo_password | quote }}
+        lif python manage.py create_demo_user
+        --username {{ lif_demo_username | quote }}
+        --email {{ lif_demo_email | quote }}
+      args:
+        chdir: "{{ lif_app_dir }}"
+      register: lif_demo_user
+      changed_when: "'Created demo user' in lif_demo_user.stdout or 'Updated demo user' in lif_demo_user.stdout"
+      no_log: true
+      when:
+        - lif_demo_deployment | bool
+        - lif_effective_require_login | bool
+
+    - name: Verify demo login credentials
+      ansible.builtin.command: >-
+        {{ lif_compose_command }} exec -T
+        -e LIF_DEMO_PASSWORD={{ lif_demo_password | quote }}
+        lif python manage.py shell -c
+        "import os; from django.contrib.auth import authenticate; user = authenticate(username='{{ lif_demo_username }}', password=os.environ['LIF_DEMO_PASSWORD']); raise SystemExit(0 if user is not None else 1)"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      changed_when: false
+      no_log: true
+      when:
+        - lif_demo_deployment | bool
+        - lif_effective_require_login | bool
+
+    - name: Verify demo deployment has login disabled
+      ansible.builtin.command: >-
+        {{ lif_compose_command }} exec -T
+        lif python manage.py shell -c
+        "from django.conf import settings; raise SystemExit(0 if not settings.LIF_REQUIRE_LOGIN else 1)"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      changed_when: false
+      when:
+        - lif_demo_deployment | bool
+        - not lif_effective_require_login | bool
+
+    - name: Verify demo root page does not redirect to login
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ lif_container_port }}/"
+        headers:
+          Host: "{{ ansible_host }}"
+        status_code: 200
+        return_content: false
+      register: lif_demo_no_login_check
+      retries: 10
+      delay: 2
+      until: lif_demo_no_login_check.status == 200
+      when:
+        - lif_demo_deployment | bool
+        - not lif_effective_require_login | bool
+
+    - name: Check LiF through external host header
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ lif_container_port }}/"
+        headers:
+          Host: "{{ ansible_host }}"
+        status_code:
+          - 200
+          - 302
+        return_content: false
+      register: lif_external_host_check
+      retries: 10
+      delay: 2
+      until: lif_external_host_check.status in [200, 302]
+
+    - name: Show deployment result
+      ansible.builtin.debug:
+        msg: "LiF is running on port {{ lif_container_port }} from {{ lif_app_dir }} at {{ lif_repo_version }}. Login required: {{ lif_effective_require_login | bool }}. Demo mode: {{ lif_demo_deployment | bool }}. Allowed hosts: {{ lif_effective_django_allowed_hosts | join(', ') }}."

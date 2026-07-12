@@ -1,0 +1,65 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Onboarding" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Onboarding" %}</p>
+        <h1>{% trans "Set up real planning data" %}</h1>
+        <p class="muted">{% trans "A guided path from demo exploration to a usable private household model." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:real_data_start' %}">{% trans "Real data start" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:setup' %}">{% trans "Start setup" %}</a>
+                {% if feature_flags.imports %}<a href="{% url 'planner:import_center' %}">{% trans "Import data" %}</a>{% endif %}
+            </div>
+        </details>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Progress" %}</span>
+        <strong>{{ summary.percent }}%</strong>
+        <small>{% blocktrans with complete=summary.complete total=summary.total %}{{ complete }} of {{ total }} checks complete.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Data mode" %}</span>
+        <strong>{{ household.get_data_mode_display }}</strong>
+        <small>{% trans "Shown in the sidebar." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Next step" %}</span>
+        <strong>{% if summary.next_item %}{% trans "Open" %}{% else %}{% trans "Ready" %}{% endif %}</strong>
+        <small>{% if summary.next_item %}{{ summary.next_item.label }}{% else %}{% trans "Review analytics next." %}{% endif %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Setup Path" %}</h2>
+        <a href="{% url 'planner:real_data_readiness' %}">{% trans "Full readiness" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for item in steps %}
+            <div class="issue-row {% if item.complete %}info{% else %}warning{% endif %}">
+                <div>
+                    <span class="status-pill {% if item.complete %}ok{% else %}warning{% endif %}">
+                        {% if item.complete %}{% trans "done" %}{% else %}{% trans "todo" %}{% endif %}
+                    </span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

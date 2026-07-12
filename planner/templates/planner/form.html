@@ -1,0 +1,52 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | LiF Planner{% endblock %}
+
+{% block content %}
+{% include "planner/_breadcrumb.html" with current=title %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Edit planner data" %}</p>
+        <h1>{{ title }}</h1>
+        <p class="muted">{% trans "Review the fields, save the change, then return to the relevant planning area." %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+</section>
+
+<form method="post" class="form-panel">
+    {% csrf_token %}
+    {% if form_hint %}
+        <p class="form-hint">{{ form_hint }}</p>
+    {% endif %}
+    {% if form.non_field_errors %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "error" %}</span>
+                <h3>{% trans "Review the form" %}</h3>
+                <p class="muted">{{ form.non_field_errors }}</p>
+            </div>
+        </div>
+    {% endif %}
+    <div class="form-grid">
+        {% for field in form %}
+            {% if field.is_hidden %}
+                {{ field }}
+            {% else %}
+                <div class="form-field{% if field.errors %} has-error{% endif %}">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}
+                        <small class="field-error">{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Save" %}</button>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Cancel" %}</a>
+    </div>
+</form>
+{% endblock %}

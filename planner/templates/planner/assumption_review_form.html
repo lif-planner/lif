@@ -1,0 +1,90 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Review assumption" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% include "planner/_breadcrumb.html" with current="Review assumption" %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Forecast" %}</p>
+        <h1>{% trans "Review assumption" %}</h1>
+        <p class="muted">{{ review_context.title }}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:assumptions_registry' %}">{% trans "Assumptions" %}</a>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Scope" %}</span>
+        <strong>{% if review_context.scope == "group" %}{% trans "Group" %}{% else %}{% trans "Single" %}{% endif %}</strong>
+        <small>{{ review_context.subtitle }}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Items" %}</span>
+        <strong>{{ review_context.targets|length }}</strong>
+        <small>{% trans "Will be marked current." %}</small>
+    </div>
+    {% if review_context.row.impact %}
+        <div class="metric">
+            <span>{% trans "Impact" %}</span>
+            <strong>{% trans "Forecast" %}</strong>
+            <small>{{ review_context.row.impact }}</small>
+        </div>
+    {% endif %}
+</section>
+
+<form method="post" class="form-panel">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="{{ review_context.scope }}">
+    {% if review_context.scope == "group" %}
+        <input type="hidden" name="group_key" value="{{ review_context.group.key }}">
+    {% else %}
+        <input type="hidden" name="review_key" value="{{ review_context.row.review_key }}">
+    {% endif %}
+
+    <div class="form-grid">
+        <div class="form-field">
+            <label for="reviewed_by">{% trans "Reviewed by" %}</label>
+            <input id="reviewed_by" name="reviewed_by" value="{{ existing_review.reviewed_by|default:'' }}">
+            <small class="helptext">{% trans "Optional, useful when several adults maintain the plan." %}</small>
+        </div>
+        <div class="form-field">
+            <label for="note">{% trans "Review note" %}</label>
+            <textarea id="note" name="note" rows="6">{{ existing_review.note|default:'' }}</textarea>
+            <small class="helptext">{% trans "Capture why this assumption is still acceptable for planning." %}</small>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Assumption" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, label in review_context.targets %}
+                    <tr>
+                        <td>
+                            {{ label }}
+                            {% if review_context.scope == "group" %}
+                                {% for row in review_context.group.rows %}
+                                    {% if row.review_key == key and row.impact %}
+                                        <br><small>{% trans "Impact" %}: {{ row.impact }}</small>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Mark reviewed" %}</button>
+        <a class="button secondary" href="{% url 'planner:assumptions_registry' %}">{% trans "Cancel" %}</a>
+    </div>
+</form>
+{% endblock %}

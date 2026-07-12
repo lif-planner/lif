@@ -1,0 +1,163 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "MoneyMoney Mappings" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "source" as source_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Imports" %}</p>
+        <h1>{% trans "MoneyMoney mappings" %}</h1>
+        <p class="muted">{% trans "Choose which local MoneyMoney sources LiF may import, and override account types before creating dry-run batches." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Import center" %}</a>
+        <a class="button secondary" href="{% url 'planner:import_runbook' %}">{% trans "Runbook" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Latest preview" %}</span>
+        <strong>{% if mapping_review.latest_preview %}#{{ mapping_review.latest_preview.pk }}{% else %}-{% endif %}</strong>
+        <small>{% if mapping_review.latest_preview %}{{ mapping_review.latest_preview.created_at|date:"Y-m-d H:i" }}{% else %}{% trans "Run a MoneyMoney account preview first." %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Discovered accounts" %}</span>
+        <strong>{{ mapping_review.rows|length }}</strong>
+        <small>{% trans "From latest preview plus manual overrides." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Overrides" %}</span>
+        <strong>{{ mapping_review.mapping_count }}</strong>
+        <small>{% blocktrans count count=mapping_review.mapping_count %}Saved account selection.{% plural %}Saved account selections.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Enabled" %}</span>
+        <strong>{{ mapping_review.import_enabled_count }}</strong>
+        <small>{% blocktrans count count=mapping_review.import_enabled_count %}MoneyMoney source account selected for import.{% plural %}MoneyMoney source accounts selected for import.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Needs review" %}</span>
+        <strong class="{% if mapping_review.needs_review_count %}negative{% endif %}">{{ mapping_review.needs_review_count }}</strong>
+        <small>{% trans "Unmapped accounts defaulting to cash." %}</small>
+    </div>
+</section>
+
+{% if not mapping_review.latest_preview %}
+<section class="issue-row warning">
+    <div>
+        <span class="status-pill warning">{% trans "discover" %}</span>
+        <h3>{% trans "No MoneyMoney account preview yet" %}</h3>
+        <p class="muted">{% trans "Run discovery in the import center to list source accounts without creating an import batch, or preview accounts to also create a dry-run batch." %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Open imports" %}</a>
+</section>
+{% endif %}
+
+<section class="empty-state">
+    <h3>{% trans "How selection works" %}</h3>
+    <p class="muted">
+        {% trans "Disable old credit cards, closed accounts, and portfolios you do not want in LiF. Duplicate account names are safe because LiF stores the MoneyMoney source key with each selection." %}
+    </p>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Account Type Review" %}</h2>
+        {% if mapping_review.review_complete %}
+            <span class="status-pill ok">{% trans "complete" %}</span>
+        {% else %}
+            <span class="status-pill warning">{% trans "review" %}</span>
+        {% endif %}
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_existing">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "MoneyMoney account" %}</th>
+                        <th>{% trans "Import" %}</th>
+                        <th>{% trans "Imported type" %}</th>
+                        <th>{% trans "Override" %}</th>
+                        <th>{% trans "Effective type" %}</th>
+                        <th>{% trans "Balance" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Notes" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in mapping_review.rows %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.account_name }}</strong>
+                                <small>{{ row.source_kind|default:source_label }} · {{ row.source_key }}</small>
+                                <input type="hidden" name="source_key" value="{{ row.source_key }}">
+                                <input type="hidden" name="source_kind" value="{{ row.source_kind }}">
+                                <input type="hidden" name="account_name" value="{{ row.account_name }}">
+                            </td>
+                            <td>
+                                <label class="inline-choice">
+                                    <input type="checkbox" name="import_enabled_{{ forloop.counter0 }}" {% if row.import_enabled %}checked{% endif %}>
+                                    {% trans "Sync" %}
+                                </label>
+                            </td>
+                            <td>{{ row.imported_type|default:"-" }}</td>
+                            <td>
+                                <select name="account_type_{{ forloop.counter0 }}" aria-label="{% blocktrans with name=row.account_name %}Account type override for {{ name }}{% endblocktrans %}">
+                                    <option value="">{% trans "Use import default" %}</option>
+                                    {% for value, label in account_type_choices %}
+                                        <option value="{{ value }}" {% if row.mapped_type == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>{{ row.effective_type|default:"-" }}</td>
+                            <td>{% if row.balance %}{{ row.balance }} {{ row.currency }}{% else %}-{% endif %}</td>
+                            <td>
+                                {% if row.needs_review %}
+                                    <span class="status-pill warning">{% trans "default cash" %}</span>
+                                {% elif not row.import_enabled %}
+                                    <span class="status-pill neutral">{% trans "disabled" %}</span>
+                                {% elif row.has_mapping %}
+                                    <span class="status-pill ok">{% trans "mapped" %}</span>
+                                {% else %}
+                                    <span class="status-pill info">{% trans "default" %}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <input type="text" name="notes_{{ forloop.counter0 }}" value="{{ row.notes }}" placeholder="{% trans 'Optional note' %}">
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8">{% trans "No MoneyMoney account names discovered yet." %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if mapping_review.rows %}
+            <div class="form-actions">
+                <button class="button" type="submit">{% trans "Save mappings" %}</button>
+            </div>
+        {% endif %}
+    </form>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Add Manual Override" %}</h2>
+    </div>
+    <form method="post" class="form-panel">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_mapping">
+        {{ add_form.as_div }}
+        <div class="form-actions">
+            <button class="button secondary" type="submit">{% trans "Add mapping" %}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

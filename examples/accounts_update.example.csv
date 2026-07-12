@@ -1,0 +1,5 @@
+name,account_type,balance,currency,institution,as_of_date
+Giro,cash,13000.00,EUR,Example Bank,2026-07-25
+Savings,savings,25500.00,EUR,Example Bank,2026-07-25
+Depot,depot,52000.00,EUR,Example Broker,2026-07-25
+Mortgage,loan,299000.00,EUR,Example Lender,2026-07-25

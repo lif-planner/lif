@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.lif</string>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/YOUR_USERNAME/Services/LiF</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/pipenv</string>
+    <string>run</string>
+    <string>python</string>
+    <string>manage.py</string>
+    <string>runserver</string>
+    <string>0.0.0.0:8000</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>DJANGO_DEBUG</key>
+    <string>0</string>
+    <key>DJANGO_SECRET_KEY</key>
+    <string>replace-with-a-long-random-secret</string>
+    <key>DJANGO_ALLOWED_HOSTS</key>
+    <string>127.0.0.1,localhost,lif.local,192.0.2.10</string>
+    <key>LIF_BACKUP_DIR</key>
+    <string>/Users/YOUR_USERNAME/Services/LiF/backups</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/YOUR_USERNAME/Services/LiF/logs/lif.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/YOUR_USERNAME/Services/LiF/logs/lif.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,38 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Cash Goals" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Plan" as section_label %}
+{% trans "Cash goals" as cash_goals_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=cash_goals_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Plan" %}</p>
+        <h1>{% trans "Cash goals" %}</h1>
+        <p class="muted">{% trans "Yearly household cash needs for FIRE and retirement draw planning." %}</p>
+    </div>
+    <a class="button" href="{% url 'planner:cash_goal_create' %}">{% trans "Add cash goal" %}</a>
+</section>
+<section>
+    {% if cash_goals %}
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Annual amount" %}</th><th>{% trans "Inflation" %}</th><th>{% trans "Start" %}</th><th>{% trans "End" %}</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+                {% for item in cash_goals %}
+                    <tr><td><a href="{% url 'planner:cash_goal_update' item.pk %}">{{ item.name }}</a></td><td>{{ item.annual_amount|money:household.currency }}</td><td>{% if item.indexed_to_inflation %}{% trans "Indexed" %}{% else %}{% trans "Fixed" %}{% endif %}</td><td>{{ item.start_year }}</td><td>{{ item.end_year|default:"-" }}</td><td>{% if item.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'planner:cash_goal_create' as create_url %}
+    {% trans "No cash goals yet" as empty_title %}
+    {% trans "Add the yearly cash your household will need — these drive the FIRE and retirement draw planning." as empty_message %}
+    {% trans "Add cash goal" as add_goal_label %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message action_url=create_url action_label=add_goal_label %}
+    {% endif %}
+</section>
+{% endblock %}

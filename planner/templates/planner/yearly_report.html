@@ -1,0 +1,217 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Year Report" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Open" as open_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Local yearly report" %}</p>
+        <h1>{% if report.year %}{{ report.year.label }}{% else %}{% trans "Year report" %}{% endif %}</h1>
+        <p class="muted">{% trans "A yearly planning snapshot generated from local projection data only." %}</p>
+    </div>
+    <div class="actions">
+        {% if report.year %}
+            <a class="button" href="{% url 'planner:yearly_report_slides' report.selected_year %}">{% trans "Open slides" %}</a>
+        {% endif %}
+        <a class="button secondary" href="{% url 'planner:projection_yearly_export' %}">{% trans "Yearly CSV" %}</a>
+        <a class="button secondary" href="{% url 'planner:cash_flow_export' %}">{% trans "Cash-flow CSV" %}</a>
+    </div>
+</section>
+
+{% if report.year_options %}
+<section class="analytics-toolbar compact">
+    <form method="get" class="ledger-filters">
+        <label>{% trans "Report year" %}
+            <select name="year" onchange="this.form.submit()">
+                {% for option in report.year_options %}
+                    <option value="{{ option.value }}"{% if option.value == report.selected_year %} selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <noscript><button class="button secondary" type="submit">{% trans "Open" %}</button></noscript>
+    </form>
+</section>
+{% endif %}
+
+{% if report.year %}
+<section class="metrics">
+    <div class="metric">
+        <span>{% trans "Income" %}</span>
+        <strong>{{ report.year.income|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Cash goal" %}</span>
+        <strong>{{ report.year.annual_cash_goal|money:household.currency }}</strong>
+        <small>{% blocktrans with percent=report.year.cash_goal_coverage_percent|floatformat:1 %}{{ percent }}% covered by income{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Goal gap" %}</span>
+        <strong class="{% if report.year.cash_goal_gap > 0 %}negative{% endif %}">{{ report.year.cash_goal_gap|money:household.currency }}</strong>
+        <small>{{ report.summary.fire_status }}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "ETF draw" %}</span>
+        <strong>{{ report.year.portfolio_draw_percent|floatformat:2 }}%</strong>
+        <small>{% trans "of invested balance" %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Ending liquid" %}</span>
+        <strong class="{% if report.year.ending_liquid_balance < 0 %}negative{% endif %}">{{ report.year.ending_liquid_balance|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Ending net worth" %}</span>
+        <strong>{{ report.year.ending_net_worth|money:household.currency }}</strong>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Planning Drivers" %}</h2>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <tbody>
+                    {% for group in report.groups %}
+                        <tr>
+                            <th>{{ group.title }}</th>
+                            <td>{{ group.amount|signed_money:household.currency }}</td>
+                            <td>{% blocktrans count count=group.lines|length %}{{ count }} line{% plural %}{{ count }} lines{% endblocktrans %}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td>{% trans "No projection drivers in this year." %}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Risks &amp; Attention" %}</h2>
+        </div>
+        <div class="issue-list">
+            {% for warning in report.warnings %}
+                <div class="issue-row {{ warning.severity }}">
+                    <div>
+                        <span class="status-pill {{ warning.severity }}">{{ warning.severity }}</span>
+                        <h3>{{ warning.message }}</h3>
+                        <p class="muted">{{ warning.detail }}</p>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="issue-row ok">
+                    <div>
+                        <span class="status-pill ok">{% trans "clear" %}</span>
+                        <h3>{% trans "No report warnings" %}</h3>
+                        <p class="muted">{% trans "The selected year has no projection warnings." %}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Data Quality Notes" %}</h2>
+        <a href="{% url 'planner:data_quality' %}">{% trans "Open health checks" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for issue in report.quality_issues %}
+            <div class="issue-row {{ issue.severity }}">
+                <div>
+                    <span class="status-pill {{ issue.severity }}">{{ issue.severity }}</span>
+                    <h3>{{ issue.title }}</h3>
+                    <p class="muted">{{ issue.detail }}</p>
+                </div>
+                {% if issue.action_url %}<a href="{{ issue.action_url }}">{{ issue.action_label|default:open_label }}</a>{% endif %}
+            </div>
+        {% empty %}
+            <div class="issue-row ok">
+                <div>
+                    <span class="status-pill ok">{% trans "clear" %}</span>
+                    <h3>{% trans "No data-quality issues" %}</h3>
+                    <p class="muted">{% trans "The current household data passes the configured health checks." %}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Depot Activity" %}</h2>
+        </div>
+        {% trans "No depot growth, payouts, draws, or planned purchases in this year." as no_depot_activity %}
+        {% include "planner/_report_line_table.html" with lines=report.depot_activity currency=household.currency empty=no_depot_activity %}
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Debt &amp; Loans" %}</h2>
+        </div>
+        {% trans "No debt, extra repayment, or private loan activity in this year." as no_debt_activity %}
+        {% include "planner/_report_line_table.html" with lines=report.debt_activity currency=household.currency empty=no_debt_activity %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Monthly Appendix" %}</h2>
+        <a href="{% url 'planner:projection_monthly_export' %}">{% trans "Export monthly CSV" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Income" %}</th>
+                    <th>{% trans "Expenses" %}</th>
+                    <th>{% trans "Debt principal" %}</th>
+                    <th>{% trans "Depot growth" %}</th>
+                    <th>{% trans "Net cash" %}</th>
+                    <th>{% trans "Liquid" %}</th>
+                    <th>{% trans "Net worth" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% now "Y-m" as current_month %}
+                {% for month in report.months %}
+                    <tr{% if month.month|date:"Y-m" == current_month %} class="current-period"{% endif %}>
+                        <td><a href="{% url 'planner:projection_audit' month.index %}">{{ month.month|date:"Y-m" }}</a></td>
+                        <td>{{ month.income|money:household.currency }}</td>
+                        <td>{{ month.expenses|money:household.currency }}</td>
+                        <td>{{ month.debt_principal|money:household.currency }}</td>
+                        <td>{{ month.depot_growth|money:household.currency }}</td>
+                        <td class="{% if month.net < 0 %}negative{% endif %}">{{ month.net|signed_money:household.currency }}</td>
+                        <td class="{% if month.liquid_balance < 0 %}negative{% endif %}">{{ month.liquid_balance|money:household.currency }}</td>
+                        <td>{{ month.net_worth|money:household.currency }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Assumptions" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                {% for label, value in report.assumptions %}
+                    <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% else %}
+    {% trans "No projection available" as empty_title %}
+    {% trans "Add a household start date and planning horizon to generate a report." as empty_message %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message %}
+{% endif %}
+{% endblock %}

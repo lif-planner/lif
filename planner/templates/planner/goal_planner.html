@@ -1,0 +1,84 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Goal Planner" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Forecast" as section_label %}
+{% trans "Goal planner" as goal_planner_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=goal_planner_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Goal planner" %}</p>
+        <h1>{% trans "Required monthly surplus" %}</h1>
+        <p class="muted">{% trans "Solve how much extra monthly cash flow is needed to reach a target net worth inside the current forecast horizon." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Analytics" %}</a>
+        <a class="button secondary" href="{% url 'planner:scenario_compare' %}">{% trans "Scenarios" %}</a>
+    </div>
+</section>
+
+<form method="get" class="form-panel">
+    <p class="form-hint">{% trans "The result is a projection-only calculation. It does not create rules or edit your accounts. If you like the answer, add a matching income, expense reduction, or transfer rule afterwards." %}</p>
+    {% if form.non_field_errors %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "error" %}</span>
+                <h3>{% trans "Review the form" %}</h3>
+                <p class="muted">{{ form.non_field_errors }}</p>
+            </div>
+        </div>
+    {% endif %}
+    <div class="form-grid">
+        {% for field in form %}
+            <div class="form-field{% if field.errors %} has-error{% endif %}">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}
+                {% for error in field.errors %}
+                    <small class="field-error">{{ error }}</small>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Calculate" %}</button>
+        <a class="button secondary" href="{% url 'planner:goal_planner' %}">{% trans "Reset" %}</a>
+    </div>
+</form>
+
+{% if result %}
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Monthly surplus needed" %}</span>
+        <strong class="{% if not result.solvable %}negative{% endif %}">{{ result.monthly_contribution|money:household.currency }}</strong>
+        <small>{% if result.reached_without_extra %}{% blocktrans with month=result.target_month|date:"Y-m" %}already reached by {{ month }}{% endblocktrans %}{% elif result.solvable %}{% blocktrans with start=form.cleaned_data.start_month|default:household.start_month|date:"Y-m" target=result.target_month|date:"Y-m" %}from {{ start }} to {{ target }}{% endblocktrans %}{% else %}{% trans "target above solver limit" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Target net worth" %}</span>
+        <strong>{{ result.target_net_worth|money:household.currency }}</strong>
+        <small>{{ result.target_month|date:"Y-m" }}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Projected net worth" %}</span>
+        <strong class="{% if result.gap > 0 %}negative{% endif %}">{{ result.ending_net_worth|money:household.currency }}</strong>
+        <small>{% if result.gap > 0 %}{% blocktrans with gap=result.gap|money:household.currency %}gap {{ gap }}{% endblocktrans %}{% else %}{% trans "target met" %}{% endif %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "How to use this" %}</h2>
+            <p class="muted">{% trans "Create real plan entries only after the result looks sensible." %}</p>
+        </div>
+    </div>
+    <div class="quick-actions">
+        <a class="button secondary" href="{% url 'planner:rule_create' %}">{% trans "Add income or expense rule" %}</a>
+        <a class="button secondary" href="{% url 'planner:transfer_rule_create' %}">{% trans "Add transfer rule" %}</a>
+        <a class="button secondary" href="{% url 'planner:planned_investment_purchase_create' %}">{% trans "Add planned investment" %}</a>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

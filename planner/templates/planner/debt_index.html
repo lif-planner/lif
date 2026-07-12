@@ -1,0 +1,63 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Debts" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Money" as section_label %}
+{% trans "Debts" as debts_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=debts_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Money" %}</p>
+        <h1>{% trans "Debts" %}</h1>
+        <p class="muted">{% trans "Mortgage and loan repayment plans, including fixed-rate and refinance assumptions." %}</p>
+    </div>
+    <a class="button" href="{% url 'planner:debt_create' %}">{% trans "Add debt" %}</a>
+</section>
+
+<section>
+    {% if debt_rows %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Account" %}</th>
+                    <th>{% trans "Principal" %}</th>
+                    <th>{% trans "Rate" %}</th>
+                    <th>{% trans "Payment" %}</th>
+                    <th>{% trans "Fixed until" %}</th>
+                    <th>{% trans "Refi rate" %}</th>
+                    <th>{% trans "Payoff" %}</th>
+                    <th>{% trans "Total interest" %}</th>
+                    <th>{% trans "Status" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in debt_rows %}
+                    <tr>
+                        <td><a href="{% url 'planner:debt_detail' row.debt.pk %}">{{ row.debt.name }}</a></td>
+                        <td><a href="{% url 'planner:account_detail' row.debt.account.pk %}">{{ row.debt.account.name }}</a></td>
+                        <td>{{ row.debt.current_principal|money:household.currency }}</td>
+                        <td>{{ row.debt.annual_interest_rate }}%</td>
+                        <td>{{ row.debt.monthly_payment|money:household.currency }}</td>
+                        <td>{{ row.debt.fixed_interest_until|date:"Y-m"|default:"-" }}</td>
+                        <td>{% if row.debt.refinance_annual_interest_rate %}{{ row.debt.refinance_annual_interest_rate }}%{% else %}-{% endif %}</td>
+                        <td>{% if row.summary.payoff_month %}{{ row.summary.payoff_month|date:"Y-m" }}{% else %}-{% endif %}</td>
+                        <td>{% if row.summary %}{{ row.summary.total_interest|money:household.currency }}{% else %}-{% endif %}</td>
+                        <td>{% if row.debt.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'planner:debt_create' as create_url %}
+    {% trans "No debts yet" as empty_title %}
+    {% trans "Add a mortgage or loan to model its interest, repayments, and payoff date." as empty_message %}
+    {% trans "Add debt" as add_debt_label %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message action_url=create_url action_label=add_debt_label %}
+    {% endif %}
+</section>
+{% endblock %}

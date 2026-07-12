@@ -1,0 +1,66 @@
+---
+- name: Reset LiF demo seed data
+  hosts: lif
+  become: true
+
+  pre_tasks:
+    - name: Apply seed reset defaults
+      ansible.builtin.set_fact:
+        lif_app_dir: "{{ lif_app_dir | default('/opt/lif') }}"
+
+  tasks:
+    - name: Check deployment directory
+      ansible.builtin.stat:
+        path: "{{ lif_app_dir }}"
+      register: lif_seed_app_dir
+
+    - name: Require existing deployment directory
+      ansible.builtin.assert:
+        that:
+          - lif_seed_app_dir.stat.exists
+          - lif_seed_app_dir.stat.isdir
+        fail_msg: "No LiF deployment found at {{ lif_app_dir }}. Run deploy_ansible.sh first."
+
+    - name: Check Compose file
+      ansible.builtin.stat:
+        path: "{{ lif_app_dir }}/docker-compose.yml"
+      register: lif_seed_compose_file
+
+    - name: Require Compose deployment
+      ansible.builtin.assert:
+        that:
+          - lif_seed_compose_file.stat.exists
+        fail_msg: "No docker-compose.yml found in {{ lif_app_dir }}. Run deploy_ansible.sh first."
+
+    - name: Check Docker Compose v2 command
+      ansible.builtin.command: docker compose version
+      register: lif_compose_v2_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check legacy docker-compose command
+      ansible.builtin.command: docker-compose version
+      register: lif_compose_legacy_check
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure a Docker Compose command is available
+      ansible.builtin.assert:
+        that:
+          - lif_compose_v2_check.rc == 0 or lif_compose_legacy_check.rc == 0
+        fail_msg: "Docker is installed, but no working Compose command was found."
+
+    - name: Select Docker Compose command
+      ansible.builtin.set_fact:
+        lif_compose_command: "{{ 'docker compose' if lif_compose_v2_check.rc == 0 else 'docker-compose' }}"
+
+    - name: Reset and recreate demo household data
+      ansible.builtin.command: "{{ lif_compose_command }} exec -T lif python manage.py reset_demo_data"
+      args:
+        chdir: "{{ lif_app_dir }}"
+      register: lif_seed_reset
+      changed_when: "'Reset demo data' in lif_seed_reset.stdout"
+
+    - name: Show seed reset result
+      ansible.builtin.debug:
+        msg: "{{ lif_seed_reset.stdout | default('Demo seed reset finished.') }}"

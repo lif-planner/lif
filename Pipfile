@@ -1,0 +1,18 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = ">=6.0,<6.1"
+whitenoise = ">=6.12,<7"
+gunicorn = ">=26,<27"
+money = {git = "https://github.com/MirkoDziadzka/py-money.git", ref = "dcbcbea188aad55fd2906af516d5dac1bbd2676a"}
+# Optional: only needed to run the read-only MCP server (run_mcp_server),
+# which is gated behind the mcp_server feature flag.
+mcp = ">=1.28,<2"
+
+[dev-packages]
+
+[requires]
+python_version = "3.14"

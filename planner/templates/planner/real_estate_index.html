@@ -1,0 +1,114 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Properties" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Money" as section_label %}
+{% trans "Properties" as properties_label %}
+{% trans "Already owned" as already_owned_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=properties_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Money" %}</p>
+        <h1>{% trans "Properties" %}</h1>
+        <p class="muted">{% trans "Residence and investment-property value, appreciation, carrying costs, mortgages, and sale events." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <a class="button" href="{% url 'planner:real_estate_create' %}">{% trans "Add property" %}</a>
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:real_estate_transfer_plan_create' %}">{% trans "Add transfer" %}</a>
+            </div>
+        </details>
+    </div>
+</section>
+
+<section>
+    {% if properties %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Use" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Growth" %}</th>
+                    <th>{% trans "Mortgage" %}</th>
+                    <th>{% trans "Costs" %}</th>
+                    <th>{% trans "Saved rent" %}</th>
+                    <th>{% trans "Rent" %}</th>
+                    <th>{% trans "Acquired" %}</th>
+                    <th>{% trans "Sale" %}</th>
+                    <th>{% trans "Status" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in properties %}
+                    <tr>
+                        <td><a href="{% url 'planner:real_estate_update' item.pk %}">{{ item.name }}</a></td>
+                        <td>{{ item.get_use_display }}</td>
+                        <td>{{ item.current_value|money:item.currency }}</td>
+                        <td>{{ item.annual_appreciation_rate }}%</td>
+                        <td>{% for debt in item.debts.all %}<a href="{% url 'planner:debt_detail' debt.pk %}">{{ debt.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</td>
+                        <td>{{ item.monthly_costs|money:item.currency }}/mo</td>
+                        <td>{{ item.saved_monthly_rent|money:item.currency }}/mo</td>
+                        <td>{{ item.monthly_rent|money:item.currency }}/mo</td>
+                        <td>{{ item.acquisition_month|date:"Y-m"|default:already_owned_label }}</td>
+                        <td>{{ item.sale_month|date:"Y-m"|default:"-" }}</td>
+                        <td>{% if item.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% url 'planner:real_estate_create' as create_url %}
+    {% trans "No properties yet" as empty_title %}
+    {% trans "Add a residence or investment property to include illiquid real estate value, costs, mortgages, and optional sale events in the forecast." as empty_message %}
+    {% trans "Add property" as add_property_label %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message action_url=create_url action_label=add_property_label %}
+    {% endif %}
+</section>
+
+{% if transfer_plans %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Property Transfers" %}</h2>
+            <p class="muted">{% trans "Planned real-estate gifts, including optional retained Nießbrauch." %}</p>
+        </div>
+        <a href="{% url 'planner:real_estate_transfer_plan_create' %}">{% trans "Add transfer" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Property" %}</th>
+                    <th>{% trans "Recipient" %}</th>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Ownership" %}</th>
+                    <th>{% trans "Taxable value" %}</th>
+                    <th>{% trans "Nießbrauch" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for plan in transfer_plans %}
+                    <tr>
+                        <td><a href="{% url 'planner:real_estate_transfer_plan_update' plan.pk %}">{{ plan.name }}</a></td>
+                        <td>{{ plan.property_item.name }}</td>
+                        <td>{{ plan.recipient.name }}</td>
+                        <td>{{ plan.transfer_month|date:"Y-m" }}</td>
+                        <td>{{ plan.ownership_percent }}%</td>
+                        <td>{{ plan.taxable_gift_value|money:household.currency }}</td>
+                        <td>{% if plan.retained_niessbrauch %}{% trans "Retained" %}{% else %}-{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

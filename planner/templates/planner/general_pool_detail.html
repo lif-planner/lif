@@ -1,0 +1,89 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "General Liquid Pool" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Money" as section_label %}
+{% trans "General liquid pool" as pool_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=pool_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Virtual statement" %}</p>
+        <h1>{% trans "General liquid pool" %}</h1>
+        <p class="muted">{% trans "Cash-flow lines that are not routed to a specific cash or savings account." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:general_pool_statement_export' %}">{% trans "Export CSV" %}</a>
+        <a class="button secondary" href="{% url 'planner:household_settings' %}">{% trans "Set default account" %}</a>
+        <a class="button secondary" href="{% url 'planner:account_index' %}">{% trans "Accounts" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Shown balance" %}</span>
+        <strong class="{% if current_balance < 0 %}negative{% endif %}">{{ current_balance|money:household.currency }}</strong>
+        <small>{% if selected_ledger_year %}{% blocktrans with year=selected_ledger_year %}end of {{ year }}{% endblocktrans %}{% else %}{% trans "no unrouted rows" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Default account" %}</span>
+        <strong>{% if household.default_operating_account %}{{ household.default_operating_account.name }}{% else %}{% trans "Not set" %}{% endif %}</strong>
+        <small>{% trans "Blank account fields use this when configured." %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Statement" %}</h2>
+            <p class="muted">{% trans "Set a default operating account to route future generic income and expense lines into a real account statement." %}</p>
+        </div>
+        <div class="actions">
+            <a class="button secondary" href="{% url 'planner:general_pool_statement_export' %}">{% trans "Export CSV" %}</a>
+            {% if prev_ledger_year %}<a class="button secondary" href="?ledger_year={{ prev_ledger_year }}">{{ prev_ledger_year }}</a>{% endif %}
+            {% if next_ledger_year %}<a class="button secondary" href="?ledger_year={{ next_ledger_year }}">{{ next_ledger_year }}</a>{% endif %}
+        </div>
+    </div>
+    {% if ledger_years %}
+        <form method="get" class="ledger-filters">
+            <label>{% trans "Year" %}
+                <select name="ledger_year" onchange="this.form.submit()">
+                    {% for year in ledger_years %}<option value="{{ year }}"{% if year == selected_ledger_year %} selected{% endif %}>{{ year }}</option>{% endfor %}
+                </select>
+            </label>
+            <noscript><button class="button secondary" type="submit">{% trans "Go" %}</button></noscript>
+        </form>
+    {% endif %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Pool balance" %}</th>
+                    <th>{% trans "Note" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ledger_rows %}
+                    <tr>
+                        <td>{{ row.month|date:"Y-m" }}</td>
+                        <td>{{ row.section }}</td>
+                        <td>{{ row.name }}</td>
+                        <td class="{% if row.amount < 0 %}negative{% endif %}">{{ row.amount|signed_money:household.currency }}</td>
+                        <td class="{% if row.ending_balance < 0 %}negative{% endif %}">{{ row.ending_balance|money:household.currency }}</td>
+                        <td>{{ row.note|default:"-" }}</td>
+                        <td><a href="{% url 'planner:projection_audit' row.index %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No forecast events currently use the general liquid pool." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

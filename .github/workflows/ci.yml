@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  django:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pipenv
+
+      - name: Install Pipenv
+        run: python -m pip install --upgrade pipenv
+
+      - name: Install dependencies
+        run: pipenv install --deploy
+
+      - name: Scan tracked files for secrets
+        run: python3 scripts/scan_secrets.py
+
+      - name: Scan public readiness
+        run: python3 scripts/scan_public_readiness.py
+
+      - name: Run Django checks
+        run: pipenv run python manage.py check
+
+      - name: Run tests
+        run: pipenv run python manage.py test

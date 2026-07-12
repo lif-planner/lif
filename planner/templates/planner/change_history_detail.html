@@ -1,0 +1,65 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Change Detail" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Change history" as history_label %}
+{% trans "Change detail" as detail_label %}
+{% url 'planner:change_history' as history_url %}
+{% include "planner/_breadcrumb.html" with section=history_label section_url=history_url current=detail_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Data health" %}</p>
+        <h1>{% trans "Change detail" %}</h1>
+        <p class="muted">{% trans "A single audit entry showing what changed before and after the save." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:change_history' %}">{% trans "Back to history" %}</a>
+    </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span>{% trans "Action" %}</span>
+        <strong>{{ entry.get_action_display }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>{% trans "Model" %}</span>
+        <strong>{{ entry.model_name }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>{% trans "Object" %}</span>
+        <strong>{{ entry.object_label|default:entry.object_pk }}</strong>
+    </article>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Before / after" %}</h2>
+        <span class="muted">{{ entry.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Field" %}</th>
+                    <th>{% trans "Before" %}</th>
+                    <th>{% trans "After" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in field_rows %}
+                    <tr>
+                        <td><strong>{{ row.field }}</strong></td>
+                        <td>{{ row.before }}</td>
+                        <td>{{ row.after }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3">{% trans "No field details were captured for this change." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% load i18n %}
+{% comment %}Tabbed navigation for the Data health area. Pass `active` as one of
+"quality", "reconciliation", "assumptions", "readiness", "attention".{% endcomment %}
+<nav class="tab-bar" aria-label="{% trans 'Data health sections' %}">
+    <a class="tab{% if active == 'quality' %} active{% endif %}" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    <a class="tab{% if active == 'reconciliation' %} active{% endif %}" href="{% url 'planner:reconciliation_center' %}">{% trans "Reconciliation" %}</a>
+    <a class="tab{% if active == 'assumptions' %} active{% endif %}" href="{% url 'planner:assumption_review_center' %}">{% trans "Assumptions" %}</a>
+    <a class="tab{% if active == 'readiness' %} active{% endif %}" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+    <a class="tab{% if active == 'attention' %} active{% endif %}" href="{% url 'planner:attention_settings' %}">
+        {% trans "Attention" %}{% if attention_count %} <span class="nav-badge">{{ attention_count }}</span>{% endif %}
+    </a>
+</nav>

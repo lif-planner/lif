@@ -1,0 +1,178 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Backups" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Backup center" %}</p>
+        <h1>{% trans "Local SQLite backups" %}</h1>
+        <p class="muted">{% trans "Create backups, validate existing backup files, and restore a known-good local snapshot." %}</p>
+    </div>
+    <div class="actions">
+        <form method="post" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="backup">
+            <button class="button" type="submit">{% trans "Create backup now" %}</button>
+        </form>
+        <a class="button secondary" href="{% url 'planner:system_status' %}">{% trans "System" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Backups" %}</span>
+        <strong>{{ backup_count }}</strong>
+        <small>{% if latest_backup_mtime %}{% blocktrans with date=latest_backup_mtime|date:"Y-m-d H:i" %}Latest {{ date }}{% endblocktrans %}{% else %}{% trans "No backup found" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Database size" %}</span>
+        <strong>{{ database.size_bytes|filesizeformat }}</strong>
+        <small>{{ database.engine }}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Backup directory" %}</span>
+        <strong class="{% if not backup_dir_exists %}negative{% endif %}">{% if backup_dir_exists %}{% trans "Found" %}{% else %}{% trans "Missing" %}{% endif %}</strong>
+        <small>{{ backup_dir }}</small>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Backup Files" %}</h2>
+        </div>
+        <div class="list">
+            {% for backup in backup_rows %}
+                <a class="list-row" href="{% url 'planner:backup_center' %}?preview={{ backup.name|urlencode }}">
+                    <span>
+                        <strong>{{ backup.name }}</strong><br>
+                        <small>{{ backup.size_bytes|filesizeformat }}</small>
+                    </span>
+                    <small>{{ backup.mtime|date:"Y-m-d H:i" }}</small>
+                </a>
+            {% empty %}
+                <div class="list-row">
+                    <span>{% trans "No backups yet" %}</span>
+                    <small>{% trans "Create one before imports or real-data changes." %}</small>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Restore Preview" %}</h2>
+            {% if preview %}
+                <span class="status-pill {% if preview.valid %}ok{% else %}critical{% endif %}">{% if preview.valid %}{% trans "valid" %}{% else %}{% trans "invalid" %}{% endif %}</span>
+            {% endif %}
+        </div>
+        {% if preview %}
+            <div class="list">
+                <div class="list-row">
+                    <span>
+                        <strong>{{ preview.name }}</strong><br>
+                        <small>{{ preview.size_bytes|filesizeformat }} · {{ preview.mtime|date:"Y-m-d H:i" }}</small>
+                    </span>
+                    <small>{% trans "Restore candidate" %}</small>
+                </div>
+                {% if preview.error %}
+                    <div class="list-row">
+                        <span>{{ preview.error }}</span>
+                        <small><span class="status-pill critical">{% trans "error" %}</span></small>
+                    </div>
+                {% endif %}
+                {% for count in preview.counts %}
+                    <div class="list-row">
+                        <span>{{ count.label }}</span>
+                        <small>{% if count.count is None %}-{% else %}{{ count.count }}{% endif %}</small>
+                    </div>
+                {% endfor %}
+            </div>
+            {% if preview.valid %}
+                <form method="post" class="danger-zone">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="restore">
+                    <input type="hidden" name="backup_name" value="{{ preview.name }}">
+                    <label class="checkbox-row">
+                        <input type="checkbox" name="confirm_restore" value="yes">
+                        {% trans "Restore this backup over the current database after creating a pre-restore backup." %}
+                    </label>
+                    <button class="button danger" type="submit">{% trans "Restore selected backup" %}</button>
+                </form>
+            {% else %}
+                <p class="form-hint">{% trans "Invalid backups cannot be restored." %}</p>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <h3>{% trans "No backup selected" %}</h3>
+                <p class="muted">{% trans "Choose a backup file to validate that it looks like a LiF database and inspect record counts." %}</p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Backup & Restore History" %}</h2>
+        <span class="muted">{% trans "Latest local operations" %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Time" %}</th>
+                    <th>{% trans "Action" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "File" %}</th>
+                    <th>{% trans "Pre-restore backup" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in backup_events %}
+                    <tr>
+                        <td>{{ event.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ event.get_action_display }}</td>
+                        <td><span class="status-pill {% if event.status == 'failed' %}critical{% elif event.status == 'started' %}warning{% else %}ok{% endif %}">{{ event.get_status_display }}</span></td>
+                        <td>{{ event.filename|default:"-" }}</td>
+                        <td>{{ event.pre_restore_filename|default:"-" }}</td>
+                        <td>{{ event.detail|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "No backup or restore operations recorded yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Database" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                <tr>
+                    <th>{% trans "Database path" %}</th>
+                    <td>{{ database.path }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Database exists" %}</th>
+                    <td>{% if database.exists %}{% trans "yes" %}{% else %}{% trans "no" %}{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Backup directory" %}</th>
+                    <td>{{ backup_dir }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans "Latest backup" %}</th>
+                    <td>{% if latest_backup %}{{ latest_backup.name }}{% else %}-{% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Cash Flow & Transfers" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "General liquid pool" as liquid_pool_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Cash flow" %}</p>
+        <h1>{% trans "Cash Flow &amp; Transfers" %}</h1>
+        <p class="muted">{% trans "Every planned money movement — income, expenses, debt, loans, and transfers — with the account each one hits." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:transfer_rule_create' %}">{% trans "Add transfer" %}</a>
+        <a class="button secondary" href="{% url 'planner:cash_flow_export' %}">{% trans "Export CSV" %}</a>
+        <a class="button secondary" href="{% url 'planner:plan_index' %}">{% trans "Rules" %}</a>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Transfer Rules" %}</h2>
+            <p class="muted">{% trans "Edit the rules that create scheduled ETF savings, savings moves, and extra debt repayments." %}</p>
+        </div>
+        <a href="{% url 'planner:transfer_rule_create' %}">{% trans "Add transfer" %}</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Target" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Cadence" %}</th>
+                    <th>{% trans "Start" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in transfer_rules %}
+                    <tr>
+                        <td><a href="{% url 'planner:transfer_rule_update' rule.pk %}">{{ rule.name }}</a>{% if rule.category %}<br><small class="muted">{{ rule.category }}</small>{% endif %}</td>
+                        <td>{{ rule.source_account.name|default:liquid_pool_label }}</td>
+                        <td>{{ rule.target_account.name }}</td>
+                        <td>{{ rule.amount|money:household.currency }}</td>
+                        <td>{{ rule.get_cadence_display }}</td>
+                        <td>{{ rule.start_month|date:"Y-m"|default:"-" }}</td>
+                        <td>{% if rule.is_active %}{% trans "Active" %}{% else %}{% trans "Paused" %}{% endif %}</td>
+                        <td><a href="{% url 'planner:transfer_rule_update' rule.pk %}">{% trans "Edit" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">{% trans "No transfer rules yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Cash Flow Ledger" %}{% if selected_year %} · {{ selected_year }}{% endif %}</h2>
+        <span class="muted">{% blocktrans count count=ledger_rows|length %}{{ count }} movement{% plural %}{{ count }} movements{% endblocktrans %}</span>
+    </div>
+    {% if ledger_years %}
+    <form method="get" class="ledger-filters">
+        <label>{% trans "Year" %}
+            <select name="year" onchange="this.form.submit()">
+                {% for y in ledger_years %}<option value="{{ y }}"{% if y == selected_year %} selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>{% trans "Account" %}
+            <select name="account" onchange="this.form.submit()">
+                {% for value, label in account_options %}<option value="{{ value }}"{% if value == selected_account %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>{% trans "Category" %}
+            <select name="group" onchange="this.form.submit()">
+                {% for value, label in group_options %}<option value="{{ value }}"{% if value == selected_group %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </label>
+        <label>{% trans "Search" %}
+            <input type="search" name="q" value="{{ ledger_query }}" placeholder="{% trans 'Transfer, account, amount' %}">
+        </label>
+        <button class="button secondary" type="submit">{% trans "Search" %}</button>
+        {% if ledger_query %}<a class="button secondary" href="?year={{ selected_year }}&account={{ selected_account }}&group={{ selected_group }}">{% trans "Clear" %}</a>{% endif %}
+        <span class="ledger-pager">
+            {% if prev_year %}<a class="button secondary" href="?year={{ prev_year }}&account={{ selected_account }}&group={{ selected_group }}&q={{ ledger_query|urlencode }}">‹ {{ prev_year }}</a>{% endif %}
+            {% if next_year %}<a class="button secondary" href="?year={{ next_year }}&account={{ selected_account }}&group={{ selected_group }}&q={{ ledger_query|urlencode }}">{{ next_year }} ›</a>{% endif %}
+        </span>
+        <noscript><button class="button secondary" type="submit">{% trans "Apply" %}</button></noscript>
+    </form>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>{% trans "Month" %}</th><th>{% trans "Category" %}</th><th>{% trans "Description" %}</th><th>{% trans "Amount" %}</th><th>{% trans "Account" %}</th></tr>
+            </thead>
+            <tbody>
+                {% for row in ledger_rows %}
+                    <tr>
+                        <td>{{ row.month|date:"M Y" }}</td>
+                        <td>{{ row.group_title }}</td>
+                        <td>{{ row.name }}{% if row.note %}<br><small class="muted">{{ row.note }}</small>{% endif %}</td>
+                        <td class="{% if row.amount < 0 %}negative{% endif %}">{{ row.amount|money:household.currency }}</td>
+                        <td>{{ row.account_label }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">{% trans "No cash movements match these filters." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {% trans "No cash movements yet" as empty_title %}
+    {% trans "Add income, expenses, transfers, or debts and the full ledger will appear here." as empty_message %}
+    {% include "planner/_empty_state.html" with title=empty_title message=empty_message %}
+    {% endif %}
+</section>
+
+{% if warning_rows %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Cash Warnings" %}</h2>
+            <p class="muted">{% trans "These planned transfers push their source account below zero in the forecast." %}</p>
+        </div>
+        <a href="{% url 'planner:data_quality' %}?category=Projection">{% trans "Open quality" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for row in warning_rows %}
+            <div class="issue-row critical">
+                <div>
+                    <span class="status-pill critical">{% trans "critical" %}</span>
+                    <h3>{% blocktrans with rule_name=row.rule.name account_name=row.rule.source_account.name %}{{ rule_name }} overdraws {{ account_name }}{% endblocktrans %}</h3>
+                    <p class="muted">{% blocktrans with month=row.month.month|date:"M Y" account_name=row.rule.source_account.name balance=row.source_balance|money:row.rule.source_account.currency %}{{ month }} leaves {{ account_name }} at {{ balance }} after the planned transfer.{% endblocktrans %}</p>
+                </div>
+                <a href="{% url 'planner:transfer_rule_update' row.rule.pk %}">{% trans "Edit transfer" %}</a>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Scheduled Transfers" %}</h2>
+            <p class="muted">{% trans "Events are generated from the same projection that drives analytics." %}</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Transfer" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Target" %}</th>
+                    <th>{% trans "Applied amount" %}</th>
+                    <th>{% trans "Source after" %}</th>
+                    <th>{% trans "Target after" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in event_rows %}
+                    <tr>
+                        <td>{{ row.month.month|date:"Y-m" }}</td>
+                        <td><a href="{% url 'planner:transfer_rule_update' row.rule.pk %}">{{ row.rule.name }}</a><br><small>{{ row.rule.get_cadence_display }}{% if row.rule.category %} · {{ row.rule.category }}{% endif %}</small></td>
+                        <td>{{ row.rule.source_account.name|default:liquid_pool_label }}</td>
+                        <td>{{ row.rule.target_account.name }}</td>
+                        <td>{{ row.amount|money:household.currency }}</td>
+                        <td class="{% if row.source_negative %}negative{% endif %}">{% if row.source_balance is not None %}{{ row.source_balance|money:row.rule.source_account.currency }}{% else %}-{% endif %}</td>
+                        <td>{% if row.target_balance is not None %}{{ row.target_balance|money:row.rule.target_account.currency }}{% else %}-{% endif %}</td>
+                        <td>
+                            <a href="{% url 'planner:transfer_rule_update' row.rule.pk %}">{% trans "Edit" %}</a>
+                            · <a href="{% url 'planner:projection_audit' row.month.index %}">{% trans "Open month" %}</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">{% trans "No scheduled transfer events in the current projection horizon." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Account Forecast" %}</h2>
+            <p class="muted">{% trans "A quick account-level check across the projection horizon." %}</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Account" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Opening" %}</th>
+                    <th>{% trans "Ending" %}</th>
+                    <th>{% trans "Lowest" %}</th>
+                    <th>{% trans "Lowest month" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in account_rows %}
+                    <tr>
+                        <td><a href="{% url 'planner:account_detail' row.account.pk %}">{{ row.account.name }}</a></td>
+                        <td>{{ row.account.get_account_type_display }}</td>
+                        <td>{{ row.opening|money:row.account.currency }}</td>
+                        <td>{{ row.ending|money:row.account.currency }}</td>
+                        <td class="{% if row.lowest.balance < 0 %}negative{% endif %}">{{ row.lowest.balance|money:row.account.currency }}</td>
+                        <td>{{ row.lowest.month|date:"M Y" }}</td>
+                        <td><a href="{% url 'planner:projection_audit' row.lowest.index %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No accounts in the current projection." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

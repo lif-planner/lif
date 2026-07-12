@@ -1,0 +1,584 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Dashboard" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Local household planner" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "A local projection from current rules, people, assets, debts, and pensions." %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        {% if feature_flags.analytics %}<a class="button" href="{% url 'planner:analytics' %}">{% trans "Open forecast" %}</a>{% endif %}
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:yearly_report' %}">{% trans "Year report" %}</a>
+                {% if feature_flags.snapshots and baseline_snapshot %}<a href="{% url 'planner:snapshot_compare' baseline_snapshot.pk %}">{% trans "Compare current to baseline" %}</a>{% endif %}
+                <a href="{% url 'planner:real_data_readiness' %}">{% trans "Review readiness" %}</a>
+                {% if feature_flags.imports %}<a href="{% url 'planner:import_center' %}">{% trans "Import data" %}</a>{% endif %}
+            </div>
+        </details>
+    </div>
+</section>
+
+{% if household.data_mode == "demo" %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Demo Tour" %}</h2>
+            <p class="muted">{% trans "Start here to see the full planning story before entering private data." %}</p>
+        </div>
+        <a href="{% url 'planner:real_data_start' %}">{% trans "Real data path" %}</a>
+    </div>
+    <div class="metrics compact">
+        {% if feature_flags.analytics %}
+        <a class="metric link-metric" href="{% url 'planner:analytics' %}">
+            <span>{% trans "1. Forecast" %}</span>
+            <strong>{% trans "Graphs" %}</strong>
+            <small>{% trans "Explore liquid assets, depot growth, debts, and retirement draw needs." %}</small>
+        </a>
+        {% endif %}
+        {% if feature_flags.scenarios %}
+        <a class="metric link-metric" href="{% url 'planner:scenario_compare' %}">
+            <span>{% trans "2. Decisions" %}</span>
+            <strong>{% trans "Scenarios" %}</strong>
+            <small>{% trans "Compare stress tests and what-if choices against the base plan." %}</small>
+        </a>
+        {% endif %}
+        <a class="metric link-metric" href="{% url 'planner:income_timeline' %}">
+            <span>{% trans "3. Income" %}</span>
+            <strong>{% trans "Timeline" %}</strong>
+            <small>{% trans "See salary, pensions, RSUs, investment income, and major changes by year." %}</small>
+        </a>
+        <a class="metric link-metric" href="{% url 'planner:yearly_report' %}">
+            <span>{% trans "4. Story" %}</span>
+            <strong>{% trans "Report" %}</strong>
+            <small>{% trans "Open the family journey view for a presentation-friendly summary." %}</small>
+        </a>
+    </div>
+</section>
+{% endif %}
+
+<section class="analytics-toolbar compact">
+    <div>
+        <span>{% trans "Money display" %}</span>
+        <div class="segmented">
+            <a class="{% if display_mode == 'nominal' %}active{% endif %}" href="{% url 'planner:dashboard' %}?display=nominal">{% trans "Nominal" %}</a>
+            <a class="{% if display_mode == 'real' %}active{% endif %}" href="{% url 'planner:dashboard' %}?display=real">{% trans "Today's money" %}</a>
+        </div>
+    </div>
+    {% if display_mode == "real" %}
+        <div><span>{% trans "Inflation" %}</span><strong>{{ household.annual_inflation_rate }}%</strong></div>
+    {% endif %}
+</section>
+
+<section>
+    <div class="issue-row {{ decision_readiness.severity }}">
+        <div>
+            <span class="status-pill {{ decision_readiness.severity }}">{{ decision_readiness.status }}</span>
+            <h3>{{ decision_readiness.label }}</h3>
+            <p class="muted">{{ decision_readiness.detail }}</p>
+            {% if decision_readiness.items %}
+                <div class="inline-links">
+                    {% for item in decision_readiness.items|slice:":4" %}
+                        <a href="{{ item.url }}">{{ item.label }}</a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <a class="button secondary" href="{% url 'planner:planning_review_checklist' %}">{% trans "Open checklist" %}</a>
+    </div>
+</section>
+
+<section class="triage">
+    <div class="triage-forecast">
+        <p class="eyebrow">{% trans "Forecast headline" %}</p>
+        <div class="triage-figures">
+            <div>
+                <span>{% trans "Net worth now" %}</span>
+                {% display_money net_worth household.annual_inflation_rate 0 household.currency display_mode as net_worth_display %}
+                <strong class="{% if net_worth < 0 %}negative{% endif %}">{{ net_worth_display }}</strong>
+            </div>
+            {% if ending_month %}
+            <div>
+                <span>{% blocktrans with month=ending_month.month|date:"M Y" %}Projected {{ month }}{% endblocktrans %}</span>
+                {% display_money ending_month.net_worth household.annual_inflation_rate ending_month.index household.currency display_mode as ending_net_worth_display %}
+                <strong class="{% if ending_month.net_worth < 0 %}negative{% endif %}">{{ ending_net_worth_display }}</strong>
+            </div>
+            {% endif %}
+            <div>
+                <span>{% trans "Liquidity runway" %}</span>
+                {% if first_shortfall %}
+                    <strong class="negative">{% blocktrans with month=first_shortfall.month|date:"M Y" %}Shortfall {{ month }}{% endblocktrans %}</strong>
+                {% else %}
+                    <strong>{% trans "No shortfall in horizon" %}</strong>
+                {% endif %}
+            </div>
+            <div>
+                <span>{% trans "FIRE date" %}</span>
+                <strong class="{% if fire_headline.status == 'not_reached' %}negative{% endif %}">{{ fire_headline.label }}</strong>
+                {% if fire_headline.status == "portfolio_supported" %}
+                    <small>{% blocktrans with draw=fire_headline.draw_percent|floatformat:2 rate=fire_headline.safe_draw_rate|floatformat:2 %}{{ draw }}% ETF draw vs {{ rate }}%{% endblocktrans %}</small>
+                {% elif fire_headline.status == "income_covered" %}
+                    <small>{% trans "income covers yearly cash goal" %}</small>
+                {% elif fire_headline.status == "not_reached" %}
+                    <small>{% blocktrans with draw=fire_headline.draw_percent|floatformat:2 rate=fire_headline.safe_draw_rate|floatformat:2 %}{{ draw }}% best ETF draw vs {{ rate }}%{% endblocktrans %}</small>
+                {% else %}
+                    <small>{% trans "add a yearly cash goal" %}</small>
+                {% endif %}
+            </div>
+            {% if lowest_month %}
+            <div>
+                <span>{% trans "Lowest liquid" %}</span>
+                {% display_money lowest_month.liquid_balance household.annual_inflation_rate lowest_month.index household.currency display_mode as lowest_liquid_display %}
+                <strong class="{% if lowest_month.liquid_balance < 0 %}negative{% endif %}">{{ lowest_liquid_display }}</strong>
+            </div>
+            {% endif %}
+        </div>
+        {% if feature_flags.analytics %}<a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Open full forecast" %}</a>{% endif %}
+        <div class="inline-links">
+            <a href="{% url 'planner:projection_monthly_export' %}">{% trans "Monthly CSV" %}</a>
+            <a href="{% url 'planner:projection_yearly_export' %}">{% trans "Yearly CSV" %}</a>
+            <a href="{% url 'planner:cash_flow_export' %}">{% trans "Cash-flow CSV" %}</a>
+        </div>
+    </div>
+    <div class="triage-alerts">
+        <div class="section-heading">
+            <h2>{% trans "Top alerts" %}</h2>
+            <a href="{% url 'planner:data_quality' %}">{% trans "Data health" %}</a>
+        </div>
+        <div class="attention-list">
+            {% for item in attention_items|slice:":3" %}
+                <div class="attention-card {{ item.severity }}">
+                    <div class="attention-card-top">
+                        <span class="status-pill {{ item.severity }}">{{ item.priority }}</span>
+                    </div>
+                    <strong>{{ item.label }}</strong>
+                    <p>{{ item.detail }}</p>
+                    {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
+                </div>
+            {% empty %}
+                <div class="attention-card info">
+                    <span class="status-pill ok">{% trans "clear" %}</span>
+                    <strong>{% trans "Nothing urgent" %}</strong>
+                    <p>{% trans "No high-signal planning actions right now." %}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Now" %}</h2>
+            <p class="muted">{% trans "Current balances, liquidity, debt, and data quality." %}</p>
+        </div>
+        <a href="{% url 'planner:reconciliation_center' %}">{% trans "Reconciliation" %}</a>
+    </div>
+</section>
+
+<section class="metrics">
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}">
+        <span>{% trans "Data confidence" %}</span>
+        <strong class="{% if data_confidence.average_score < 70 %}negative{% endif %}">{{ data_confidence.average_score }}%</strong>
+        <small>
+            {% if lowest_confidence_account %}
+                {% blocktrans with name=lowest_confidence_account.account.name score=lowest_confidence_account.score %}Lowest: {{ name }} {{ score }}%{% endblocktrans %}
+            {% else %}
+                {% trans "Add accounts to score data confidence" %}
+            {% endif %}
+        </small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:assumption_review_center' %}">
+        <span>{% trans "Assumption reviews" %}</span>
+        <strong class="{% if assumption_registry.confidence_counts.expired %}negative{% endif %}">{{ assumption_registry.confidence_counts.expired }}</strong>
+        <small>{% blocktrans with defaults=assumption_registry.confidence_counts.default inherited=assumption_registry.confidence_counts.inherited %}expired · {{ defaults }} defaults · {{ inherited }} inherited{% endblocktrans %}</small>
+    </a>
+    <div class="metric">
+        <span>{% trans "Liquid accounts" %}</span>
+        <strong>{{ liquid_total|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Emergency fund target" %}</span>
+        <strong class="{% if emergency_gap > 0 %}negative{% endif %}">{{ emergency_target|money:household.currency }}</strong>
+        <small>
+            {% if household.emergency_fund_months > 0 %}
+                {% blocktrans with months=household.emergency_fund_months %}{{ months }} months{% endblocktrans %}
+                {% if emergency_expense_base <= 0 %}
+                    · {% trans "add recurring expenses to calculate target" %}
+                {% elif emergency_gap > 0 %}
+                    · {% blocktrans with gap=emergency_gap|money:household.currency %}gap {{ gap }}{% endblocktrans %}
+                {% endif %}
+            {% else %}
+                {% trans "not configured" %}
+            {% endif %}
+        </small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Depot value" %}</span>
+        <strong>{{ invested_total|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Other assets" %}</span>
+        <strong>{{ other_asset_total|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Liabilities" %}</span>
+        <strong class="{% if liability_total > 0 %}negative{% endif %}">{{ liability_total|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Net worth" %}</span>
+        <strong class="{% if net_worth < 0 %}negative{% endif %}">{{ net_worth|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "This month cash net" %}</span>
+        <strong class="{% if first_month.net < 0 %}negative{% endif %}">{{ first_month.net|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Lowest liquid balance" %}</span>
+        <strong class="{% if lowest_month.liquid_balance < 0 %}negative{% endif %}">{{ lowest_month.liquid_balance|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Planning horizon" %}</span>
+        <strong>
+            {% if household.planning_years %}
+                {% blocktrans with years=household.planning_years %}{{ years }} years{% endblocktrans %}
+            {% else %}
+                {% blocktrans with months=household.planning_months %}{{ months }} months{% endblocktrans %}
+            {% endif %}
+        </strong>
+        <small>{% blocktrans with granularity=display_granularity %}{{ granularity }} view{% endblocktrans %}</small>
+    </div>
+</section>
+
+{% if feature_flags.scenarios %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Future" %}</h2>
+            <p class="muted">{% trans "Projection health, liquidity stress, and long-range retirement signals." %}</p>
+        </div>
+        <span class="{% if liquidity_view.stress_months %}negative{% else %}muted{% endif %}">
+            {% blocktrans with count=liquidity_view.stress_months|length %}{{ count }} stress months{% endblocktrans %}
+        </span>
+    </div>
+    <div class="liquidity-panel">
+        <div class="liquidity-summary">
+            <div>
+                <span>{% trans "Lowest liquid month" %}</span>
+                <strong class="{% if liquidity_view.lowest_liquid_month.lowest_liquid_balance < 0 %}negative{% endif %}">
+                    {{ liquidity_view.lowest_liquid_month.label }} · {{ liquidity_view.lowest_liquid_month.lowest_liquid_balance|money:household.currency }}
+                </strong>
+            </div>
+            <div>
+                <span>{% trans "Lowest net worth" %}</span>
+                <strong class="{% if liquidity_view.lowest_net_worth_month.net_worth < 0 %}negative{% endif %}">
+                    {{ liquidity_view.lowest_net_worth_month.label }} · {{ liquidity_view.lowest_net_worth_month.net_worth|money:household.currency }}
+                </strong>
+            </div>
+        </div>
+        <div class="liquidity-chart">
+            {% for item in liquidity_view.months %}
+                <div class="liquidity-row {% if item.cash_stress %}stress{% endif %}">
+                    <div class="liquidity-month">{{ item.label }}</div>
+                    <div class="liquidity-bars">
+                        <div class="bar-line">
+                            <span>{% trans "Cash" %}</span>
+                            <div class="bar-track">
+                                <div class="bar cash {% if item.liquid_balance < 0 %}negative-bar{% endif %}" style="width: {{ item.cash_width }}%"></div>
+                            </div>
+                            <small class="{% if item.liquid_balance < 0 %}negative{% endif %}">{{ item.liquid_balance|money:household.currency }}</small>
+                        </div>
+                        <div class="bar-line">
+                            <span>{% trans "NW" %}</span>
+                            <div class="bar-track">
+                                <div class="bar net-worth {% if item.net_worth < 0 %}negative-bar{% endif %}" style="width: {{ item.net_worth_width }}%"></div>
+                            </div>
+                            <small class="{% if item.net_worth < 0 %}negative{% endif %}">{{ item.net_worth|money:household.currency }}</small>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section class="quick-actions" aria-label="{% trans 'Planning shortcuts' %}">
+    <div class="quick-action-panel">
+        <div>
+            <p class="eyebrow">{% trans "Plan" %}</p>
+            <h3>{% trans "People, cash needs, and rules" %}</h3>
+            <p class="muted">{% trans "Keep the household model and recurring cash flow tidy." %}</p>
+        </div>
+        <div class="actions">
+            <a class="button secondary" href="{% url 'planner:setup' %}">{% trans "Setup" %}</a>
+            <a class="button secondary" href="{% url 'planner:rule_create' %}">{% trans "Add rule" %}</a>
+            {% if feature_flags.cash_goals %}<a class="button secondary" href="{% url 'planner:cash_goal_create' %}">{% trans "Cash goal" %}</a>{% endif %}
+        </div>
+    </div>
+    <div class="quick-action-panel">
+        <div>
+            <p class="eyebrow">{% trans "Accounts" %}</p>
+            <h3>{% trans "Assets, depot, and debt" %}</h3>
+            <p class="muted">{% trans "Maintain the current foundation that projections start from." %}</p>
+        </div>
+        <div class="actions">
+            <a class="button secondary" href="{% url 'planner:account_setup' %}">{% trans "Wizard" %}</a>
+            <a class="button secondary" href="{% url 'planner:account_create' %}">{% trans "Account" %}</a>
+            {% if feature_flags.depot_holdings %}<a class="button secondary" href="{% url 'planner:depot_holding_create' %}">{% trans "Holding" %}</a>{% endif %}
+            {% if feature_flags.real_estate %}<a class="button secondary" href="{% url 'planner:real_estate_create' %}">{% trans "Property" %}</a>{% endif %}
+        </div>
+    </div>
+    <div class="quick-action-panel">
+        <div>
+            <p class="eyebrow">{% trans "Forecast" %}</p>
+            <h3>{% trans "Retirement and scenarios" %}</h3>
+            <p class="muted">{% trans "Explore long-term outcomes without changing the base plan." %}</p>
+        </div>
+        <div class="actions">
+            {% if feature_flags.retirement_plans %}<a class="button secondary" href="{% url 'planner:retirement_detail' %}">{% trans "Retirement" %}</a>{% endif %}
+            {% if feature_flags.scenarios %}<a class="button secondary" href="{% url 'planner:scenario_compare' %}">{% trans "Scenarios" %}</a>{% endif %}
+            <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+        </div>
+    </div>
+</section>
+
+{% if retirement_health_issues %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Retirement Health" %}</h2>
+        <a href="{% url 'planner:data_quality' %}?category=Retirement">{% trans "Open quality" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for item in retirement_health_issues|slice:":3" %}
+            <div class="issue-row {{ item.severity }}">
+                <div>
+                    <span class="status-pill {{ item.severity }}">{{ item.severity }}</span>
+                    <h3>{{ item.title }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if feature_flags.snapshots %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Recent changes" %}</h2>
+        <span class="actions">
+            <a href="{% url 'planner:snapshot_projection_changes' %}">{% trans "Projection changes" %}</a>
+            <a href="{% url 'planner:snapshot_review' %}">{% trans "Open" %}</a>
+        </span>
+    </div>
+    <div class="metrics compact">
+        {% if latest_review_summary %}
+            <a class="metric link-metric" href="{% url 'planner:snapshot_review' %}?baseline={{ latest_review_summary.review.baseline_snapshot.pk }}&comparison={{ latest_review_summary.review.comparison_snapshot.pk }}">
+                <span>{% trans "Latest saved review" %}</span>
+                <strong>{{ latest_review_summary.review.title }}</strong>
+                <small>{{ latest_review_summary.review.review_date|date:"Y-m-d" }}</small>
+            </a>
+            <div class="metric">
+                <span>{% trans "Review period" %}</span>
+                <strong>{{ latest_review_summary.review.baseline_snapshot.snapshot_date|date:"Y" }} → {{ latest_review_summary.review.comparison_snapshot.snapshot_date|date:"Y" }}</strong>
+                <small>{% blocktrans with start=latest_review_summary.review.baseline_snapshot.snapshot_date|date:"Y-m-d" end=latest_review_summary.review.comparison_snapshot.snapshot_date|date:"Y-m-d" %}{{ start }} to {{ end }}{% endblocktrans %}</small>
+            </div>
+            <div class="metric">
+                <span>{% trans "Net worth delta" %}</span>
+                <strong class="{% if latest_review_summary.net_worth_delta.direction == 'negative' %}negative{% endif %}">
+                    {{ latest_review_summary.net_worth_delta.delta }} {{ latest_review_summary.currency }}
+                </strong>
+                <small>{{ latest_review_summary.net_worth_delta.snapshot_value }} → {{ latest_review_summary.net_worth_delta.current_value }}</small>
+            </div>
+        {% else %}
+            <div class="metric">
+                <span>{% trans "No saved review yet" %}</span>
+                <strong>{% trans "Not reviewed" %}</strong>
+                <small>{% trans "Create two snapshots and save an annual review to track reality against the plan." %}</small>
+            </div>
+        {% endif %}
+    </div>
+    {% if open_review_actions %}
+        <div class="section-heading">
+            <h3>{% trans "Open Review Actions" %}</h3>
+        </div>
+        <div class="list">
+            {% for action in open_review_actions %}
+                <a class="list-row" href="{% url 'planner:snapshot_review' %}?baseline={{ action.review.baseline_snapshot.pk }}&comparison={{ action.review.comparison_snapshot.pk }}">
+                    <span>
+                        <strong>{{ action.title }}</strong><br>
+                        <small>{{ action.review.title }}{% if action.owner %} · {{ action.owner.name }}{% endif %}</small>
+                    </span>
+                    <small>{% if action.due_date %}{{ action.due_date|date:"Y-m-d" }}{% else %}{% trans "No due date" %}{% endif %}</small>
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if feature_flags.cash_goals %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Cash Goals" %}</h2>
+        <a href="{% url 'planner:cash_goal_create' %}">{% trans "Add" %}</a>
+    </div>
+    <div class="metrics compact">
+        {% for goal in cash_goals %}
+            <a class="metric link-metric" href="{% url 'planner:cash_goal_update' goal.pk %}">
+                <span>{{ goal.name }}</span>
+                <strong>{{ goal.annual_amount|money:household.currency }}</strong>
+                <small>
+                    {{ goal.start_year }}{% if goal.end_year %}-{{ goal.end_year }}{% else %}+{% endif %}
+                    {% if not goal.is_active %} · {% trans "inactive" %}{% endif %}
+                </small>
+            </a>
+        {% empty %}
+            <div class="metric">
+                <span>{% trans "No cash goal yet" %}</span>
+                <strong>{% trans "Not set" %}</strong>
+                <small>{% trans "Add a yearly cash need to compare income with FIRE draw needs." %}</small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if feature_flags.scenarios %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Scenarios" %}</h2>
+        <span><a href="{% url 'planner:scenario_compare' %}">{% trans "Compare" %}</a> · <a href="{% url 'planner:scenario_create' %}">{% trans "Add" %}</a></span>
+    </div>
+    <div class="metrics compact">
+        {% for card in scenario_cards %}
+            <a class="metric link-metric" href="{% url 'planner:scenario_update' card.scenario.pk %}">
+                <span>{{ card.scenario.name }}</span>
+                <strong class="{% if card.monthly_delta < 0 %}negative{% endif %}">{{ card.monthly_delta|money:household.currency }}</strong>
+                <small>
+                    {% trans "monthly net delta" %}
+                    {% if card.scenario.liquid_balance_delta %} · {% blocktrans with amount=card.scenario.liquid_balance_delta|money:household.currency %}start {{ amount }}{% endblocktrans %}{% endif %}
+                </small>
+            </a>
+        {% empty %}
+            <div class="metric">
+                <span>{% trans "No scenarios yet" %}</span>
+                <strong>{% trans "Base only" %}</strong>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Manage" %}</h2>
+        <span class="muted">{% trans "Jump to a planning area" %}</span>
+    </div>
+    <div class="metrics compact">
+        <a class="metric link-metric" href="{% url 'planner:account_index' %}">
+            <span>{% trans "Accounts" %}</span>
+            <strong>{{ accounts|length }}</strong>
+            <small>{% trans "cash · savings · depot · loans" %}</small>
+        </a>
+        {% if feature_flags.depot_holdings %}
+        <a class="metric link-metric" href="{% url 'planner:holding_index' %}">
+            <span>{% trans "Depot holdings" %}</span>
+            <strong>{{ depot_holdings|length }}</strong>
+            <small>{% trans "positions" %}</small>
+        </a>
+        {% endif %}
+        {% if feature_flags.debts %}
+        <a class="metric link-metric" href="{% url 'planner:debt_index' %}">
+            <span>{% trans "Debts" %}</span>
+            <strong>{{ debts|length }}</strong>
+            <small>{% trans "mortgages · loans" %}</small>
+        </a>
+        {% endif %}
+        {% if feature_flags.real_estate %}
+        <a class="metric link-metric" href="{% url 'planner:real_estate_index' %}">
+            <span>{% trans "Properties" %}</span>
+            <strong>{{ properties|length }}</strong>
+            <small>{% trans "residence · investment" %}</small>
+        </a>
+        {% endif %}
+        <a class="metric link-metric" href="{% url 'planner:plan_index' %}">
+            <span>{% trans "Income & expenses" %}</span>
+            <strong>{{ income_rules|length }}</strong>
+            <small>{% trans "+ expenses, investments, life events" %}</small>
+        </a>
+        <a class="metric link-metric" href="{% url 'planner:transfer_plan' %}">
+            <span>{% trans "Transfers" %}</span>
+            <strong>{{ transfer_rules|length }}</strong>
+            <small>{% trans "between accounts" %}</small>
+        </a>
+        {% if feature_flags.retirement_plans %}
+        <a class="metric link-metric" href="{% url 'planner:retirement_plan_index' %}">
+            <span>{% trans "Retirement plans" %}</span>
+            <strong>{{ retirement_plans|length }}</strong>
+            <small>{% trans "pensions" %}</small>
+        </a>
+        {% endif %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Forecast detail" %}</h2>
+            <p class="muted">{% trans "The dashboard shows the headline. Use these pages for detailed graphs, audit lines, and exports." %}</p>
+        </div>
+        <a href="{% url 'planner:household_settings' %}">{% trans "Projection settings" %}</a>
+    </div>
+    <div class="metrics compact">
+        {% if feature_flags.analytics %}
+        <a class="metric link-metric" href="{% url 'planner:analytics' %}">
+            <span>{% trans "Interactive analytics" %}</span>
+            <strong>{% trans "Graphs" %}</strong>
+            <small>{% trans "Range controls, balances, cash flow, and retirement draw views." %}</small>
+        </a>
+        {% endif %}
+        <a class="metric link-metric" href="{% url 'planner:projection_integrity' %}">
+            <span>{% trans "Projection integrity" %}</span>
+            <strong class="{% if not projection_integrity.ok %}negative{% endif %}">{% if projection_integrity.ok %}{% trans "OK" %}{% else %}{{ projection_integrity.failure_count }}{% endif %}</strong>
+            <small>{% trans "Math checks for balances and audit lines." %}</small>
+        </a>
+        <a class="metric link-metric" href="{% url 'planner:projection_audit' 0 %}?goto={% now 'Y-m' %}">
+            <span>{% trans "Current month audit" %}</span>
+            <strong>{% trans "Open" %}</strong>
+            <small>{% trans "Why this month moved." %}</small>
+        </a>
+        <a class="metric link-metric" href="{% url 'planner:projection_year_audit' 0 %}?goto_year={% now 'Y' %}">
+            <span>{% trans "Current year audit" %}</span>
+            <strong>{% trans "Open" %}</strong>
+            <small>{% trans "Drivers, bridge, and monthly breakdown." %}</small>
+        </a>
+        <a class="metric link-metric" href="{% url 'planner:yearly_report' %}">
+            <span>{% trans "Journey report" %}</span>
+            <strong>{% trans "Story" %}</strong>
+            <small>{% trans "Presentation-friendly yearly summary." %}</small>
+        </a>
+        {% if feature_flags.snapshots %}
+        <a class="metric link-metric" href="{% url 'planner:snapshot_projection_changes' %}">
+            <span>{% trans "Projection changes" %}</span>
+            <strong>{% trans "Compare" %}</strong>
+            <small>{% trans "What changed since the latest snapshot." %}</small>
+        </a>
+        {% endif %}
+    </div>
+    <div class="inline-links">
+        <a href="{% url 'planner:projection_monthly_export' %}">{% trans "Monthly CSV" %}</a>
+        <a href="{% url 'planner:projection_yearly_export' %}">{% trans "Yearly CSV" %}</a>
+        <a href="{% url 'planner:cash_flow_export' %}">{% trans "Cash-flow CSV" %}</a>
+    </div>
+</section>
+{% endblock %}

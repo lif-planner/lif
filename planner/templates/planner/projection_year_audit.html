@@ -1,0 +1,403 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Year Forecast Detail" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Year forecast detail" %}</p>
+        <h1>{{ year.label }}</h1>
+        <p class="muted">{% blocktrans with count=year.month_count %}{{ count }} projected months, grouped into the cash-flow and balance movements that explain the year.{% endblocktrans %}</p>
+    </div>
+    <div class="actions dashboard-actions">
+        <details class="nav-group">
+            <summary>{% trans "More" %} ▾</summary>
+            <div class="nav-menu nav-menu-right">
+                <a href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+                <a href="{% url 'planner:projection_year_audit' 0 %}?goto_year={{ year.year }}&display=nominal">{% trans "Nominal" %}</a>
+                <a href="{% url 'planner:projection_year_audit' 0 %}?goto_year={{ year.year }}&display=real">{% trans "Today's money" %}</a>
+            </div>
+        </details>
+        {% if previous_index is not None %}
+            <a class="button secondary" data-nav="prev" href="{% url 'planner:projection_year_audit' previous_index %}?display={{ display_mode }}">{% trans "Previous" %}</a>
+        {% endif %}
+        {% if next_index is not None %}
+            <a class="button secondary" data-nav="next" href="{% url 'planner:projection_year_audit' next_index %}?display={{ display_mode }}">{% trans "Next" %}</a>
+        {% endif %}
+    </div>
+</section>
+
+<form method="get" class="ledger-filters">
+    <label>{% trans "Jump to year" %}
+        <select name="goto_year" onchange="this.form.submit()">
+            {% for opt in year_options %}<option value="{{ opt.value }}"{% if opt.value == year.year %} selected{% endif %}>{{ opt.label }}</option>{% endfor %}
+        </select>
+    </label>
+    <input type="hidden" name="display" value="{{ display_mode }}">
+    <noscript><button class="button secondary" type="submit">{% trans "Go" %}</button></noscript>
+</form>
+
+<section class="metrics">
+    <div class="metric">
+        <span>{% trans "Opening liquid" %}</span>
+        {% display_money year.opening_liquid_balance household.annual_inflation_rate year.start_index household.currency display_mode as opening_liquid_display %}
+        <strong class="{% if year.opening_liquid_balance < 0 %}negative{% endif %}">{{ opening_liquid_display }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Income" %}</span>
+        <strong>{{ year.income|money:household.currency }}</strong>
+        <small>{% blocktrans with amount=year.savings_interest_income|money:household.currency %}{{ amount }} savings interest{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Expenses" %}</span>
+        <strong>{{ year.expenses|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Transfers" %}</span>
+        <strong>{{ year.transfers|money:household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Cash net" %}</span>
+        {% display_money year.net household.annual_inflation_rate year.end_index household.currency display_mode as net_display %}
+        <strong class="{% if year.net < 0 %}negative{% endif %}">{{ net_display }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Cash goal" %}</span>
+        <strong>{{ year.annual_cash_goal|money:household.currency }}</strong>
+        <small>{% blocktrans with percent=year.cash_goal_coverage_percent|floatformat:2 %}{{ percent }}% covered by income{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "ETF draw need" %}</span>
+        {% display_money year.cash_goal_gap household.annual_inflation_rate year.end_index household.currency display_mode as cash_goal_gap_display %}
+        <strong class="{% if year.cash_goal_gap > 0 %}negative{% endif %}">{{ cash_goal_gap_display }}</strong>
+        <small>{% blocktrans with percent=year.portfolio_draw_percent|floatformat:2 %}{{ percent }}% of opening depot{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Ending liquid" %}</span>
+        {% display_money year.ending_liquid_balance household.annual_inflation_rate year.end_index household.currency display_mode as ending_liquid_display %}
+        <strong class="{% if year.ending_liquid_balance < 0 %}negative{% endif %}">{{ ending_liquid_display }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Lowest liquid" %}</span>
+        {% display_money year.lowest_liquid_balance household.annual_inflation_rate year.end_index household.currency display_mode as lowest_liquid_display %}
+        <strong class="{% if year.lowest_liquid_balance < 0 %}negative{% endif %}">{{ lowest_liquid_display }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Ending net worth" %}</span>
+        {% display_money year.ending_net_worth household.annual_inflation_rate year.end_index household.currency display_mode as ending_net_worth_display %}
+        <strong class="{% if year.ending_net_worth < 0 %}negative{% endif %}">{{ ending_net_worth_display }}</strong>
+        {% if display_mode == "real" %}<small>{% blocktrans with rate=household.annual_inflation_rate %}today's money, {{ rate }}% inflation{% endblocktrans %}</small>{% endif %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Account Balances" %}</h2>
+        <span class="muted">{% blocktrans with label=year.label %}As of end of {{ label }}{% endblocktrans %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>{% trans "Account" %}</th><th>{% trans "Type" %}</th><th>{% trans "Balance" %}</th></tr>
+            </thead>
+            <tbody>
+                {% for row in account_balances %}
+                    <tr>
+                        <td><a href="{% url 'planner:account_detail' row.account.pk %}?ledger_year={{ year.year }}">{{ row.account.name }}</a></td>
+                        <td>{{ row.account.get_account_type_display }}</td>
+                        <td class="{% if row.balance < 0 %}negative{% endif %}">{{ row.balance|money:row.account.currency }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3">{% trans "No account-level balances are tracked for this year." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if warnings %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Things To Check" %}</h2>
+        <span class="muted">{% blocktrans count count=warnings|length %}{{ count }} signal{% plural %}{{ count }} signals{% endblocktrans %}</span>
+    </div>
+    <div class="forecast-warning-list">
+        {% for warning in warnings %}
+            <div class="issue-row {{ warning.severity }}">
+                <div>
+                    <span class="status-pill {{ warning.severity }}">{{ warning.severity }}</span>
+                    <h3>{{ warning.message }}</h3>
+                    <p>{{ warning.detail }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Main Drivers This Period" %}</h2>
+            <p class="muted">{% trans "A compact checklist of the lines most likely to explain why this year looks different." %}</p>
+        </div>
+    </div>
+    <div class="grid three">
+        {% for group in driver_summary.groups %}
+            <div>
+                <h3>{{ group.label }}</h3>
+                <p class="muted">{{ group.description }}</p>
+                <div class="list">
+                    {% for row in group.rows %}
+                        <div class="list-row">
+                            <span>{{ row.section }} · {{ row.name }}</span>
+                            <small class="{% if row.primary_effect < 0 %}negative{% endif %}">{{ row.primary_effect|money:household.currency }}</small>
+                        </div>
+                    {% empty %}
+                        <div class="list-row"><span>{% trans "No matching drivers" %}</span><small>0</small></div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Explanation Summary" %}</h2>
+            <p class="muted">{% trans "The short version of how this period moved cash, depot value, liabilities, and net worth." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for row in explanation.balance_changes %}
+            <div class="metric">
+                <span>{{ row.label }}</span>
+                <strong class="{% if row.amount < 0 %}negative{% endif %}">{{ row.amount|money:household.currency }}</strong>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="grid two">
+        <div>
+            <h3>{% trans "Cash bridge" %}</h3>
+            <div class="list">
+                {% for row in explanation.cash_bridge %}
+                    <div class="list-row">
+                        <span>{{ row.label }}</span>
+                        <small class="{% if row.amount < 0 %}negative{% endif %}">{{ row.amount|money:household.currency }}</small>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <h3>{% trans "Main cash drivers" %}</h3>
+            <div class="list">
+                {% for line in explanation.top_cash_lines %}
+                    <div class="list-row">
+                        <span>{{ line.section }} · {{ line.name }}</span>
+                        <small class="{% if line.cash_effect < 0 %}negative{% endif %}">{{ line.cash_effect|money:household.currency }}</small>
+                    </div>
+                {% empty %}
+                    <div class="list-row"><span>{% trans "No cash movement" %}</span><small>0</small></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Balance Bridge" %}</h2>
+        </div>
+        <div class="list">
+            <div class="list-row">
+                <span>{% trans "Opening liquid balance" %}</span>
+                <small>{{ year.opening_liquid_balance|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Plus income" %}</span>
+                <small>{{ year.income|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Of which savings interest" %}</span>
+                <small>{{ year.savings_interest_income|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Minus expenses" %}</span>
+                <small>{{ year.expenses|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Minus transfers" %}</span>
+                <small>{{ year.transfers|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Ending liquid balance" %}</span>
+                <small>{{ year.ending_liquid_balance|money:household.currency }}</small>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Asset Bridge" %}</h2>
+        </div>
+        <div class="list">
+            <div class="list-row">
+                <span>{% trans "Depot" %}</span>
+                <small>{{ year.opening_invested_balance|money:household.currency }} -> {{ year.ending_invested_balance|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Other assets" %}</span>
+                <small>{{ year.opening_other_asset_balance|money:household.currency }} -> {{ year.ending_other_asset_balance|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Liabilities" %}</span>
+                <small>{{ year.opening_liability_balance|money:household.currency }} -> {{ year.ending_liability_balance|money:household.currency }}</small>
+            </div>
+            <div class="list-row">
+                <span>{% trans "Net worth" %}</span>
+                <small>{{ year.opening_net_worth|money:household.currency }} -> {{ year.ending_net_worth|money:household.currency }}</small>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "What Drove This Year" %}</h2>
+        <span class="muted">{% blocktrans count count=groups|length %}{{ count }} group{% plural %}{{ count }} groups{% endblocktrans %}</span>
+    </div>
+    <div class="forecast-groups">
+        {% for group in groups %}
+            <div class="forecast-group">
+                <div class="forecast-group-summary">
+                    <div>
+                        <h3>{{ group.title }}</h3>
+                        <p>{{ group.description }}</p>
+                    </div>
+                    <div class="forecast-group-values">
+                        <strong class="{% if group.cash_effect < 0 %}negative{% endif %}">{{ group.cash_effect|money:household.currency }}</strong>
+                        <small>{% trans "cash effect" %}</small>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>{% trans "Section" %}</th>
+                                <th>{% trans "Name" %}</th>
+                                <th>{% trans "Amount" %}</th>
+                                <th>{% trans "Cash" %}</th>
+                                <th>{% trans "Depot" %}</th>
+                                <th>{% trans "Other asset" %}</th>
+                                <th>{% trans "Liability" %}</th>
+                                <th>{% trans "Accounts" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in group.lines %}
+                                <tr>
+                                    <td>{{ line.section }}</td>
+                                    <td>{{ line.name }}</td>
+                                    <td>{{ line.amount|money:household.currency }}</td>
+                                    <td class="{% if line.cash_effect < 0 %}negative{% endif %}">{{ line.cash_effect|money:household.currency }}</td>
+                                    <td>{{ line.invested_effect|money:household.currency }}</td>
+                                    <td class="{% if line.other_asset_effect < 0 %}negative{% endif %}">{{ line.other_asset_effect|money:household.currency }}</td>
+                                    <td>{{ line.liability_effect|money:household.currency }}</td>
+                                    <td>{{ line.account_effects|account_effects:household.currency }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                <h3>{% trans "No applied lines" %}</h3>
+                <p>{% trans "This year only carries balances forward." %}</p>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Raw Calculation Rollup" %}</h2>
+        <span class="muted">{% blocktrans count count=year.audit_lines|length %}{{ count }} grouped line{% plural %}{{ count }} grouped lines{% endblocktrans %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Section" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Cash effect" %}</th>
+                    <th>{% trans "Depot effect" %}</th>
+                    <th>{% trans "Other asset effect" %}</th>
+                    <th>{% trans "Liability effect" %}</th>
+                    <th>{% trans "Accounts" %}</th>
+                    <th>{% trans "Note" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in year.audit_lines %}
+                    <tr>
+                        <td>{{ line.section }}</td>
+                        <td>{{ line.name }}</td>
+                        <td>{{ line.amount|money:household.currency }}</td>
+                        <td class="{% if line.cash_effect < 0 %}negative{% endif %}">{{ line.cash_effect|money:household.currency }}</td>
+                        <td>{{ line.invested_effect|money:household.currency }}</td>
+                        <td class="{% if line.other_asset_effect < 0 %}negative{% endif %}">{{ line.other_asset_effect|money:household.currency }}</td>
+                        <td>{{ line.liability_effect|money:household.currency }}</td>
+                        <td>{{ line.account_effects|account_effects:household.currency }}</td>
+                        <td>{{ line.note }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9">{% trans "No line items applied in this year." %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Monthly Breakdown" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Income" %}</th>
+                    <th>{% trans "Expenses" %}</th>
+                    <th>{% trans "Transfers" %}</th>
+                    <th>{% trans "Cash net" %}</th>
+                    <th>{% trans "Ending liquid" %}</th>
+                    <th>{% trans "Net worth" %}</th>
+                    <th>{% trans "Audit" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% now "Y-m" as current_month %}
+                {% for month in months %}
+                    <tr{% if month.month|date:"Y-m" == current_month %} class="current-period"{% endif %}>
+                        <td>{{ month.month|date:"M Y" }}</td>
+                        <td>{{ month.income|money:household.currency }}</td>
+                        <td>{{ month.expenses|money:household.currency }}</td>
+                        <td>{{ month.transfers|money:household.currency }}</td>
+                        <td class="{% if month.net < 0 %}negative{% endif %}">{{ month.net|money:household.currency }}</td>
+                        <td class="{% if month.liquid_balance < 0 %}negative{% endif %}">{{ month.liquid_balance|money:household.currency }}</td>
+                        <td class="{% if month.net_worth < 0 %}negative{% endif %}">{{ month.net_worth|money:household.currency }}</td>
+                        <td><a href="{% url 'planner:projection_audit' month.index %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

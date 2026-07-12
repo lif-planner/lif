@@ -1,0 +1,627 @@
+{% extends "planner/base.html" %}
+{% load i18n static planner_extras %}
+
+{% block title %}{% trans "Scenario Compare" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{{ comparison.chart|json_script:"scenario-chart-data" }}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Scenario comparison" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Compare the base plan with active what-if scenarios over the planning horizon." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:scenario_create' %}">{% trans "Add scenario" %}</a>
+        <a class="button secondary" href="{% url 'planner:scenario_household_clone' %}">{% trans "Clone household scenario" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+        {% if feature_flags.analytics %}<a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Analytics" %}</a>{% endif %}
+    </div>
+</section>
+
+<section class="analytics-toolbar" data-scenario-toolbar>
+    <div>
+        <span>{% trans "Chart" %}</span>
+        <div class="segmented" data-control="scenario-series">
+            <button type="button" data-scenario-series="liquidBalance">{% trans "Liquid" %}</button>
+            <button type="button" data-scenario-series="netWorth">{% trans "Net worth" %}</button>
+            <button type="button" data-scenario-series="depotValue">{% trans "Depot" %}</button>
+            <button type="button" data-scenario-series="liabilityBalance">{% trans "Liabilities" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Retirement chart" %}</span>
+        <div class="segmented" data-control="retirement-series">
+            <button type="button" data-retirement-series="taxAwareDrawNeed">{% trans "Draw need" %}</button>
+            <button type="button" data-retirement-series="taxAwareDrawPercent">{% trans "Draw risk" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Money" %}</span>
+        <div class="segmented" data-control="scenario-display-mode">
+            <button type="button" data-scenario-display-mode="nominal">{% trans "Nominal" %}</button>
+            <button type="button" data-scenario-display-mode="real">{% trans "Today's money" %}</button>
+        </div>
+    </div>
+    <div>
+        <span>{% trans "Active scenarios" %}</span>
+        <strong>{{ active_scenario_count }}</strong>
+    </div>
+    <div>
+        <span>{% trans "Stress presets" %}</span>
+        <strong>{{ comparison.preset_count }}</strong>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Scenario Trust" %}</h2>
+            <p class="muted">{% trans "All plans on this page use the same account foundation. Review confidence before using scenarios for decisions." %}</p>
+        </div>
+        <a href="{% url 'planner:reconciliation_center' %}">{% trans "Open reconciliation" %}</a>
+    </div>
+    <div class="metrics compact">
+        <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}">
+            <span>{% trans "Foundation confidence" %}</span>
+            <strong class="{% if data_confidence.average_score < 70 %}negative{% endif %}">{{ data_confidence.average_score }}%</strong>
+            <small>{% blocktrans with medium=data_confidence.medium_count low=data_confidence.low_count %}{{ medium }} medium, {{ low }} low account(s){% endblocktrans %}</small>
+        </a>
+        {% for item in data_confidence.lowest_accounts|slice:":3" %}
+            <a class="metric link-metric" href="{% url 'planner:account_detail' item.account.pk %}">
+                <span>{{ item.account.name }}</span>
+                <strong class="{% if item.score < 70 %}negative{% endif %}">{{ item.score }}%</strong>
+                <small>
+                    {% for deduction in item.deductions|slice:":2" %}
+                        {{ deduction.reason }}{% if not forloop.last %} · {% endif %}
+                    {% empty %}
+                        {% trans "No score deductions" %}
+                    {% endfor %}
+                </small>
+            </a>
+        {% endfor %}
+    </div>
+    {% if data_confidence.average_score < 90 %}
+        <div class="issue-row {% if data_confidence.average_score < 70 %}critical{% else %}warning{% endif %}">
+            <div>
+                <span class="status-pill {% if data_confidence.average_score < 70 %}critical{% else %}warning{% endif %}">{% trans "review" %}</span>
+                <h3>{% trans "Scenario comparison is only as reliable as the account foundation" %}</h3>
+                <p class="muted">{% trans "Fix stale values, missing valuation dates, source keys, or depot drift before treating scenario deltas as decision-ready." %}</p>
+            </div>
+            <a class="button secondary" href="{% url 'planner:reconciliation_center' %}">{% trans "Review confidence" %}</a>
+        </div>
+    {% endif %}
+</section>
+
+{% if comparison.highlights %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Decision Highlights" %}</h2>
+            <p class="muted">{% trans "Quick winners across the plans before you inspect the full table." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for item in comparison.highlights %}
+            <div class="metric">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.winner_label }}</strong>
+                {% if item.kind == "money" %}
+                    <small>{{ item.value|money:household.currency }}</small>
+                    <small>
+                        {% if item.is_base %}
+                            {% trans "same as base plan" %}
+                        {% else %}
+                            {% blocktrans with delta=item.delta_vs_base|money:household.currency %}{{ delta }} vs base{% endblocktrans %}
+                        {% endif %}
+                    </small>
+                {% else %}
+                    <small>{% blocktrans with count=item.value %}{{ count }} months{% endblocktrans %}</small>
+                    <small>
+                        {% if item.is_base %}
+                            {% trans "same as base plan" %}
+                        {% else %}
+                            {% blocktrans with delta=item.delta_vs_base %}{{ delta }} months vs base{% endblocktrans %}
+                        {% endif %}
+                    </small>
+                {% endif %}
+                <small>{{ item.detail }}</small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if comparison.estate_rows %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Estate Planning Comparisons" %}</h2>
+            <p class="muted">{% trans "These presets help separate gifting, selling, and keeping assets from the rest of the stress tests." %}</p>
+        </div>
+        <div class="actions">
+            <a class="button secondary" href="{% url 'planner:plan_index' %}">{% trans "Family gifts" %}</a>
+            <a class="button secondary" href="{% url 'planner:real_estate_index' %}">{% trans "Real estate" %}</a>
+            <a class="button secondary" href="#scenario-chart">{% trans "Chart" %}</a>
+        </div>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Base plan" %}</span>
+            <strong>{% trans "Current plans" %}</strong>
+            <small>{% trans "Uses your active family gifts, Kinderdepot transfers, property transfers, and retained Nießbrauch assumptions." %}</small>
+        </div>
+        {% for row in comparison.estate_rows %}
+            <div class="metric">
+                <span>{{ row.label }}</span>
+                <strong class="{% if row.ending_net_worth_delta < 0 %}negative{% endif %}">{{ row.ending_net_worth_delta|money:household.currency }}</strong>
+                <small>{% trans "ending net worth vs base" %}</small>
+                <small>
+                    {% trans "Liquid" %}:
+                    <span class="{% if row.ending_liquid_delta < 0 %}negative{% endif %}">{{ row.ending_liquid_delta|money:household.currency }}</span>
+                    · {% trans "Lowest" %}:
+                    <span class="{% if row.lowest_liquid_delta < 0 %}negative{% endif %}">{{ row.lowest_liquid_delta|money:household.currency }}</span>
+                </small>
+                {% if row.label == "Estate: keep property" %}
+                    <small>{% trans "Shows what happens if the planned property gift is paused and the flat remains in household net worth." %}</small>
+                {% elif row.label == "Estate: sell property now" %}
+                    <small>{% trans "Converts currently owned real estate into liquid cash using sale costs, taxes, and mortgage payoff assumptions." %}</small>
+                {% elif row.label == "Estate: keep cash gifts" %}
+                    <small>{% trans "Shows what happens if planned cash or Kinderdepot gifts remain in the household instead." %}</small>
+                {% elif row.label == "Estate: no estate transfers" %}
+                    <small>{% trans "Keeps both property and cash/depot gifts in household net worth for a full keep-everything comparison." %}</small>
+                {% else %}
+                    <small>{{ row.detail }}</small>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="metrics compact">
+    {% for row in comparison.rows %}
+        <div class="metric">
+            <span>{{ row.label }}</span>
+            <strong class="{% if row.lowest_liquid < 0 %}negative{% endif %}">{{ row.lowest_liquid|money:household.currency }}</strong>
+            <small>{% blocktrans with label=row.lowest_label %}lowest liquid in {{ label }}{% endblocktrans %}</small>
+        </div>
+    {% endfor %}
+</section>
+
+{% if comparison.decision_rows %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Decision Snapshot" %}</h2>
+            <p class="muted">{% trans "Each card shows the change versus the base plan, so real choices are easier to compare." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for row in comparison.decision_rows %}
+            <div class="metric">
+                <span>{{ row.label }}</span>
+                <strong class="{% if row.ending_net_worth_delta < 0 %}negative{% endif %}">
+                    {{ row.ending_net_worth_delta|money:household.currency }}
+                </strong>
+                <small>{% trans "ending net worth vs base" %}</small>
+                <small>
+                    {% trans "Liquid" %}:
+                    <span class="{% if row.ending_liquid_delta < 0 %}negative{% endif %}">{{ row.ending_liquid_delta|money:household.currency }}</span>
+                    · {% trans "Lowest" %}:
+                    <span class="{% if row.lowest_liquid_delta < 0 %}negative{% endif %}">{{ row.lowest_liquid_delta|money:household.currency }}</span>
+                </small>
+                <small>
+                    {% trans "Tax-aware draw" %}:
+                    <span class="{% if row.ending_tax_aware_draw_need_delta > 0 %}negative{% endif %}">{{ row.ending_tax_aware_draw_need_delta|money:household.currency }}</span>
+                </small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Changed Inputs" %}</h2>
+            <p class="muted">{% trans "What each scenario changes before the projection is calculated." %}</p>
+        </div>
+    </div>
+    <div class="grid three">
+        {% for row in comparison.rows %}
+            <div>
+                <div class="section-heading">
+                    <h3>{{ row.label }}</h3>
+                    {% if row.is_preset %}<span class="status-pill info">{% trans "preset" %}</span>{% endif %}
+                </div>
+                <div class="list">
+                    {% for item in row.input_diffs %}
+                        <div class="list-row">
+                            <span>
+                                {{ item.label }}<br>
+                                <small>{{ item.detail }}</small>
+                            </span>
+                            <small>
+                                {% if item.amount is not None %}
+                                    <span class="{% if item.amount < 0 %}negative{% endif %}">{{ item.amount|money:household.currency }}</span>
+                                {% else %}
+                                    {{ item.kind }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% if retirement_health_issues %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Retirement Health" %}</h2>
+        <a href="{% url 'planner:data_quality' %}?category=Retirement">{% trans "Open quality" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for item in retirement_health_issues|slice:":3" %}
+            <div class="issue-row {{ item.severity }}">
+                <div>
+                    <span class="status-pill {{ item.severity }}">{{ item.severity }}</span>
+                    <h3>{{ item.title }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if sensitivity_groups %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Assumption Sensitivity" %}</h2>
+            <p class="muted">{% trans "Quick checks for the assumptions that can move a long-range FIRE or retirement plan the most." %}</p>
+        </div>
+    </div>
+    {% for group in sensitivity_groups %}
+        <div class="section-heading subtle">
+            <div>
+                <h3>{{ group.label }}</h3>
+                <p class="muted">{{ group.description }}</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Assumption" %}</th>
+                        <th>{% trans "Ending net worth" %}</th>
+                        <th>{% trans "Ending liquid" %}</th>
+                        <th>{% trans "Lowest liquid" %}</th>
+                        <th>{% trans "Stress months" %}</th>
+                        <th>{% trans "Ending cash gap" %}</th>
+                        <th>{% trans "Max draw %" %}</th>
+                        <th>{% trans "Years above 4%" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in group.rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td class="{% if row.ending_net_worth < 0 %}negative{% endif %}">{{ row.ending_net_worth|money:household.currency }}</td>
+                            <td class="{% if row.ending_liquid < 0 %}negative{% endif %}">{{ row.ending_liquid|money:household.currency }}</td>
+                            <td class="{% if row.lowest_liquid < 0 %}negative{% endif %}">{{ row.lowest_liquid|money:household.currency }}<br><small>{{ row.lowest_label }}</small></td>
+                            <td class="{% if row.stress_months > 0 %}negative{% endif %}">{{ row.stress_months }}</td>
+                            <td class="{% if row.ending_cash_goal_gap > 0 %}negative{% endif %}">{{ row.ending_cash_goal_gap|money:household.currency }}</td>
+                            <td class="{% if row.max_tax_aware_draw_percent > 4 %}negative{% endif %}">{{ row.max_tax_aware_draw_percent|floatformat:2 }}%</td>
+                            <td class="{% if row.years_above_four_percent > 0 %}negative{% endif %}">{{ row.years_above_four_percent }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="chart-panel">
+    <div class="section-heading">
+        <h2>{% trans "Scenario Chart" %}</h2>
+        <span class="muted" id="scenario-chart-label"></span>
+    </div>
+    <div class="chart-shell">
+        <div id="scenario-chart" class="analytics-chart" role="img" aria-label="{% trans 'Scenario comparison chart' %}"></div>
+    </div>
+    <div class="chart-actions">
+        <button type="button" class="button secondary" id="scenario-chart-reset">{% trans "Reset zoom" %}</button>
+    </div>
+</section>
+
+<section class="chart-panel">
+    <div class="section-heading">
+        <h2>{% trans "Retirement Scenario Chart" %}</h2>
+        <span class="muted" id="retirement-scenario-chart-label"></span>
+    </div>
+    <div class="chart-shell">
+        <div id="retirement-scenario-chart" class="analytics-chart" role="img" aria-label="{% trans 'Tax-aware retirement scenario comparison chart' %}"></div>
+    </div>
+    <div class="chart-actions">
+        <button type="button" class="button secondary" id="retirement-scenario-chart-reset">{% trans "Reset zoom" %}</button>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Outcomes" %}</h2>
+        <span class="muted">{% blocktrans count count=comparison.rows|length %}{{ count }} plan{% plural %}{{ count }} plans{% endblocktrans %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Plan" %}</th>
+                    <th>{% trans "Data confidence" %}</th>
+                    <th>{% trans "Ending liquid" %}</th>
+                    <th>{% trans "Liquid vs base" %}</th>
+                    <th>{% trans "Ending net worth" %}</th>
+                    <th>{% trans "Net worth vs base" %}</th>
+                    <th>{% trans "Depot" %}</th>
+                    <th>{% trans "Liabilities" %}</th>
+                    <th>{% trans "Lowest liquid" %}</th>
+                    <th>{% trans "Stress months" %}</th>
+                    <th>{% trans "Retirement starts" %}</th>
+                    <th>{% trans "Ending ETF draw need" %}</th>
+                    <th>{% trans "Ending tax-aware draw" %}</th>
+                    <th>{% trans "Max tax-aware draw %" %}</th>
+                    <th>{% trans "Years above 4%" %}</th>
+                    <th>{% trans "Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparison.rows %}
+                    <tr>
+                        <td>
+                            {{ row.label }}
+                            {% if row.is_preset %}<br><small>{% trans "Preset stress test" %}</small>{% endif %}
+                            {% if row.detail %}<br><small>{{ row.detail }}</small>{% endif %}
+                        </td>
+                        <td>
+                            <span class="status-pill {% if data_confidence.average_score >= 90 %}ok{% elif data_confidence.average_score >= 70 %}warning{% else %}critical{% endif %}">
+                                {{ data_confidence.average_score }}%
+                            </span>
+                            <br><small>{% trans "shared foundation" %}</small>
+                        </td>
+                        <td>{{ row.ending_liquid|money:household.currency }}</td>
+                        <td class="{% if row.ending_liquid_delta < 0 %}negative{% endif %}">{{ row.ending_liquid_delta|money:household.currency }}</td>
+                        <td>{{ row.ending_net_worth|money:household.currency }}</td>
+                        <td class="{% if row.ending_net_worth_delta < 0 %}negative{% endif %}">{{ row.ending_net_worth_delta|money:household.currency }}</td>
+                        <td>{{ row.ending_depot|money:household.currency }}</td>
+                        <td class="{% if row.ending_liability > 0 %}negative{% endif %}">{{ row.ending_liability|money:household.currency }}</td>
+                        <td class="{% if row.lowest_liquid < 0 %}negative{% endif %}">{{ row.lowest_liquid|money:household.currency }}<br><small>{{ row.lowest_label }}</small></td>
+                        <td>{{ row.stress_months }}</td>
+                        <td>{% if row.retirement_label %}{{ row.retirement_label }}<br><small>{% blocktrans with amount=row.retirement_income|money:household.currency %}{{ amount }}/mo{% endblocktrans %}</small>{% else %}-{% endif %}</td>
+                        <td class="{% if row.ending_cash_goal_gap > 0 %}negative{% endif %}">{{ row.ending_cash_goal_gap|money:household.currency }}</td>
+                        <td class="{% if row.ending_tax_aware_draw_need > 0 %}negative{% endif %}">{{ row.ending_tax_aware_draw_need|money:household.currency }}</td>
+                        <td class="{% if row.max_tax_aware_draw_percent > 4 %}negative{% endif %}">{{ row.max_tax_aware_draw_percent|floatformat:2 }}%</td>
+                        <td class="{% if row.years_above_four_percent > 0 %}negative{% endif %}">{{ row.years_above_four_percent }}</td>
+                        <td>
+                            {% if row.is_preset %}
+                                {% trans "Preset" %}
+                            {% elif row.scenario %}
+                                <a href="{% url 'planner:scenario_update' row.scenario.pk %}">{% trans "Edit" %}</a>
+                            {% else %}
+                                {% trans "Base" %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="16">{% trans "No projection data available." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<script src="{% static 'vendor/echarts.min.js' %}"></script>
+<script>
+(function () {
+    const data = JSON.parse(document.getElementById("scenario-chart-data").textContent);
+    const privacyMode = {{ privacy_mode_enabled|yesno:"true,false" }};
+    const maskedMoney = "••••• {{ household.currency }}";
+    const chart = echarts.init(document.getElementById("scenario-chart"), null, { renderer: "canvas" });
+    const retirementChart = echarts.init(document.getElementById("retirement-scenario-chart"), null, { renderer: "canvas" });
+    const state = { series: "liquidBalance", retirementSeries: "taxAwareDrawNeed", displayMode: "nominal" };
+    const labels = {
+        liquidBalance: "{% trans 'Liquid balance' %}",
+        netWorth: "{% trans 'Net worth' %}",
+        depotValue: "{% trans 'Depot value' %}",
+        liabilityBalance: "{% trans 'Liabilities' %}",
+        annualCashGoal: "{% trans 'Cash goal' %}",
+        netIncome: "{% trans 'Estimated net income' %}",
+        taxAwareDrawNeed: "{% trans 'Tax-aware draw need' %}",
+        taxAwareDrawPercent: "{% trans 'Tax-aware draw %' %}",
+    };
+    const palette = ["#246b55", "#234b7a", "#7a5c1f", "#b3261e", "#5f6c72", "#7b4f9d"];
+
+    function numberValue(value) {
+        return Number.parseFloat(value) || 0;
+    }
+
+    function formatMoney(value) {
+        if (privacyMode) {
+            return maskedMoney;
+        }
+        return new Intl.NumberFormat("en", {
+            style: "currency",
+            currency: data.currency,
+            maximumFractionDigits: 0,
+        }).format(numberValue(value));
+    }
+
+    function fieldKey(key) {
+        return state.displayMode === "real" ? `${key}Real` : key;
+    }
+
+    function formatPercent(value) {
+        return `${numberValue(value).toFixed(2)}%`;
+    }
+
+    function chartBase() {
+        return {
+            animationDuration: 350,
+            backgroundColor: "transparent",
+            color: palette,
+            grid: {
+                left: 78,
+                right: 34,
+                top: 44,
+                bottom: 76,
+            },
+            legend: {
+                top: 4,
+                type: "scroll",
+                textStyle: { color: "#64706b" },
+            },
+            tooltip: {
+                trigger: "axis",
+                confine: true,
+            },
+            xAxis: {
+                type: "category",
+                boundaryGap: false,
+                data: data.labels.map((point) => point.label),
+                axisLabel: {
+                    hideOverlap: true,
+                    color: "#64706b",
+                },
+                axisLine: {
+                    lineStyle: { color: "#cbd8d1" },
+                },
+            },
+            yAxis: {
+                type: "value",
+                scale: true,
+                axisLabel: {
+                    color: "#64706b",
+                },
+                splitLine: {
+                    lineStyle: { color: "#edf2ef" },
+                },
+            },
+            dataZoom: [
+                { type: "inside", throttle: 60 },
+                {
+                    type: "slider",
+                    bottom: 22,
+                    height: 24,
+                    brushSelect: true,
+                    borderColor: "#dbe4df",
+                    fillerColor: "rgba(36, 107, 85, .14)",
+                    handleStyle: { color: "#246b55" },
+                    textStyle: { color: "#64706b" },
+                },
+            ],
+        };
+    }
+
+    function render() {
+        document.querySelectorAll("[data-scenario-series]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.scenarioSeries === state.series);
+        });
+        document.querySelectorAll("[data-retirement-series]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.retirementSeries === state.retirementSeries);
+        });
+        document.querySelectorAll("[data-scenario-display-mode]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.scenarioDisplayMode === state.displayMode);
+        });
+        const modeLabel = state.displayMode === "real" ? `{% trans "today's money" %}, ${data.inflation.annualRate}% {% trans "inflation" %}` : "{% trans 'nominal' %}";
+        document.getElementById("scenario-chart-label").textContent = `${labels[state.series]} · ${modeLabel}`;
+        const scenarioOption = chartBase();
+        scenarioOption.tooltip.valueFormatter = formatMoney;
+        scenarioOption.yAxis.axisLabel.formatter = formatMoney;
+        scenarioOption.series = data.scenarios.map((scenario) => ({
+            name: scenario.label,
+            type: "line",
+            smooth: true,
+            showSymbol: false,
+            symbolSize: 5,
+            emphasis: { focus: "series" },
+            lineStyle: { width: 3 },
+            data: scenario[fieldKey(state.series)].map(numberValue),
+        }));
+        chart.setOption(scenarioOption, true);
+
+        const retirementOption = chartBase();
+        const retirementField = state.retirementSeries === "taxAwareDrawPercent" ? "taxAwareDrawPercent" : fieldKey(state.retirementSeries);
+        const isPercent = state.retirementSeries === "taxAwareDrawPercent";
+        document.getElementById("retirement-scenario-chart-label").textContent = `${labels[state.retirementSeries]} · ${isPercent ? "{% trans 'risk' %}" : modeLabel}`;
+        retirementOption.tooltip.valueFormatter = isPercent ? formatPercent : formatMoney;
+        retirementOption.yAxis.scale = !isPercent;
+        retirementOption.yAxis.axisLabel.formatter = isPercent ? formatPercent : formatMoney;
+        retirementOption.series = data.scenarios.map((scenario) => ({
+            name: scenario.label,
+            type: "line",
+            smooth: true,
+            showSymbol: false,
+            symbolSize: 5,
+            emphasis: { focus: "series" },
+            lineStyle: { width: 3 },
+            data: scenario[retirementField].map(numberValue),
+        }));
+        if (isPercent) {
+            retirementOption.series.push({
+                name: "4% guide",
+                type: "line",
+                symbol: "none",
+                lineStyle: { width: 2, type: "dashed", color: "#5f6c72" },
+                data: data.labels.map(() => 4),
+            });
+        } else {
+            retirementOption.series.push({
+                name: labels.annualCashGoal,
+                type: "line",
+                symbol: "none",
+                lineStyle: { width: 2, type: "dashed", color: "#5f6c72" },
+                data: data.scenarios[0] ? data.scenarios[0][fieldKey("annualCashGoal")].map(numberValue) : [],
+            });
+        }
+        retirementChart.setOption(retirementOption, true);
+    }
+
+    document.querySelectorAll("[data-scenario-series]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.series = button.dataset.scenarioSeries;
+            render();
+        });
+    });
+    document.querySelectorAll("[data-retirement-series]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.retirementSeries = button.dataset.retirementSeries;
+            render();
+        });
+    });
+    document.querySelectorAll("[data-scenario-display-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+            state.displayMode = button.dataset.scenarioDisplayMode;
+            render();
+        });
+    });
+    document.getElementById("scenario-chart-reset").addEventListener("click", () => {
+        chart.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+    });
+    document.getElementById("retirement-scenario-chart-reset").addEventListener("click", () => {
+        retirementChart.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+    });
+    window.addEventListener("resize", () => {
+        chart.resize();
+        retirementChart.resize();
+    });
+    render();
+})();
+</script>
+{% endblock %}

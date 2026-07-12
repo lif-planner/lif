@@ -1,0 +1,508 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{{ account.name }} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Uncategorized" as uncategorized_label %}
+{% trans "Liquid pool" as liquid_pool_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Account detail" %}</p>
+        <h1>{{ account.name }}</h1>
+        <p class="muted">{{ account.get_account_type_display }}{% if account.institution %} · {{ account.institution }}{% endif %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:account_update' account.pk %}">{% trans "Edit account" %}</a>
+        <a class="button secondary" href="{% url 'planner:account_statement_export' account.pk %}">{% trans "Export CSV" %}</a>
+        <a class="button secondary" href="{% url 'planner:account_delete' account.pk %}">{% trans "Delete local account" %}</a>
+        <a class="button secondary" href="{% url 'planner:account_index' %}">{% trans "Accounts" %}</a>
+    </div>
+</section>
+
+<section class="metrics">
+    <div class="metric">
+        <span>{% trans "Balance" %}</span>
+        <strong>{{ account.balance|money:account.currency }}</strong>
+        <small>{% if account.as_of_date %}{% blocktrans with date=account.as_of_date|date:"Y-m-d" %}As of {{ date }}{% endblocktrans %}{% else %}{% trans "No valuation date" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Effective balance" %}</span>
+        <strong>{{ account.effective_balance|money:account.currency }}</strong>
+        <small>{% if account.account_type == "depot" %}{{ account.get_depot_valuation_display }}{% else %}{% trans "Projection value" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Source" %}</span>
+        <strong>{{ account.get_source_display }}</strong>
+        <small>{% if account.ynab_account_id %}{% trans "YNAB linked" %}{% else %}{% trans "Manual/local" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Owner" %}</span>
+        <strong>{{ account.owner_label }}</strong>
+        <small>{% if account.counts_in_household_net_worth %}{% trans "Counts in household planning net worth" %}{% else %}{% trans "Tracked separately from household planning net worth" %}{% endif %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Type" %}</span>
+        <strong>{{ account.get_account_type_display }}</strong>
+        <small>{{ account.currency }}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Trust & Reconciliation" %}</h2>
+            <p class="muted">{% trans "A quick read on whether this account value is current, explainable, and used as expected in planning." %}</p>
+        </div>
+        <div class="actions">
+            <a class="button secondary" href="{{ trust_summary.reconciliation_url }}">{% trans "Open reconciliation" %}</a>
+            <a class="button secondary" href="{% url 'planner:projection_integrity' %}">{% trans "Integrity" %}</a>
+        </div>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Valuation age" %}</span>
+            <strong class="{% if not account.as_of_date or trust_summary.is_stale %}negative{% endif %}">
+                {% if trust_summary.stale_days is None %}{% trans "Unknown" %}{% else %}{% blocktrans count days=trust_summary.stale_days %}{{ days }} day{% plural %}{{ days }} days{% endblocktrans %}{% endif %}
+            </strong>
+            <small>{% if account.as_of_date %}{% blocktrans with date=account.as_of_date|date:"Y-m-d" %}Balance dated {{ date }}{% endblocktrans %}{% else %}{% trans "Add or import a valuation date" %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Source key" %}</span>
+            <strong>{{ account.get_source_display }}</strong>
+            <small>{{ trust_summary.source_detail }}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Forecast low point" %}</span>
+            <strong class="{% if trust_summary.forecast_is_negative %}negative{% endif %}">
+                {% if trust_summary.lowest_forecast %}{{ trust_summary.lowest_forecast.balance|money:account.currency }}{% else %}-{% endif %}
+            </strong>
+            <small>{% if trust_summary.lowest_forecast %}{{ trust_summary.lowest_forecast.month|date:"M Y" }} · {% trans "next 36 months" %}{% else %}{% trans "No account forecast rows" %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Forecast movement" %}</span>
+            <strong class="{% if trust_summary.forecast_change < 0 %}negative{% endif %}">
+                {% if trust_summary.forecast_change is not None %}{{ trust_summary.forecast_change|signed_money:account.currency }}{% else %}-{% endif %}
+            </strong>
+            <small>{% if trust_summary.forecast_end %}{% blocktrans with month=trust_summary.forecast_end.month|date:"M Y" balance=trust_summary.forecast_end.balance|money:account.currency %}Ends {{ month }} at {{ balance }}{% endblocktrans %}{% else %}{% trans "No account forecast rows" %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Routed items" %}</span>
+            <strong>{{ trust_summary.routed_item_count }}</strong>
+            <small>
+                {% if trust_summary.nonzero_related_counts %}
+                    {% for label, count in trust_summary.nonzero_related_counts.items %}
+                        {{ label }}: {{ count }}{% if not forloop.last %} · {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {% trans "No rules, transfers, purchases, loans, or other planning links" %}
+                {% endif %}
+            </small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Net worth" %}</span>
+            <strong>{% if account.counts_in_household_net_worth %}{% trans "Included" %}{% else %}{% trans "Separate" %}{% endif %}</strong>
+            <small>{% if account.counts_in_household_net_worth %}{% trans "Counts in household planning totals" %}{% else %}{% trans "Excluded from household planning totals" %}{% endif %}</small>
+        </div>
+    </div>
+    {% if trust_summary.warnings %}
+        <div class="issue-list">
+            {% for warning in trust_summary.warnings %}
+                <div class="issue-row {{ warning.severity }}">
+                    <span>
+                        <span class="status-pill {{ warning.severity }}">{{ warning.severity }}</span>
+                        <strong>{{ warning.label }}</strong><br>
+                        <small>{{ warning.detail }}</small>
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="actions">
+        {% for action in trust_summary.actions %}
+            <a class="button secondary" href="{{ action.url }}">{{ action.label }}</a>
+        {% endfor %}
+    </div>
+</section>
+
+{% if ownership_summary.show %}
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Ownership & Planning Treatment" %}</h2>
+            <p class="muted">{% trans "Clarifies whether this account belongs to the household, a person, or is tracked separately from retirement planning." %}</p>
+        </div>
+        <a href="{% url 'planner:account_update' account.pk %}">{% trans "Edit treatment" %}</a>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Legal owner" %}</span>
+            <strong>{{ account.owner_label }}</strong>
+            <small>{% if account.owner_person %}{{ account.owner_person.get_role_display }}{% else %}{{ account.get_owner_type_display }}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Planning totals" %}</span>
+            <strong>{% if account.counts_in_household_net_worth %}{% trans "Included" %}{% else %}{% trans "Excluded" %}{% endif %}</strong>
+            <small>{% if account.counts_in_household_net_worth %}{% trans "Part of household net worth and retirement totals" %}{% else %}{% trans "Tracked separately from household net worth and retirement totals" %}{% endif %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Linked family gifts" %}</span>
+            <strong>{{ related_family_gifts|length }}</strong>
+            <small>{% trans "Gift plans using this account as source or target" %}</small>
+        </div>
+    </div>
+    <div class="issue-list">
+        <div class="issue-row {% if account.counts_in_household_net_worth %}info{% else %}warning{% endif %}">
+            <span>
+                <span class="status-pill {% if account.counts_in_household_net_worth %}info{% else %}warning{% endif %}">{% trans "treatment" %}</span>
+                {% for note in ownership_summary.notes %}
+                    <small>{{ note }}</small>{% if not forloop.last %}<br>{% endif %}
+                {% endfor %}
+            </span>
+        </div>
+    </div>
+    {% if related_family_gifts %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Gift plan" %}</th>
+                        <th>{% trans "Route" %}</th>
+                        <th>{% trans "Month" %}</th>
+                        <th>{% trans "Amount" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gift in related_family_gifts %}
+                        <tr>
+                            <td><a href="{% url 'planner:family_gift_plan_update' gift.pk %}">{{ gift.name }}</a><br><small>{{ gift.purpose|default:"-" }}</small></td>
+                            <td>{{ gift.giver.name }} -> {{ gift.recipient.name }}<br><small>{{ gift.source_account.name|default:liquid_pool_label }} -> {{ gift.target_account.name }}</small></td>
+                            <td>{{ gift.gift_month|date:"Y-m" }}</td>
+                            <td>{{ gift.amount|money:household.currency }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if account.account_type == "savings" %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Savings Interest" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <tbody>
+                <tr><th>{% trans "Annual gross rate" %}</th><td>{{ account.savings_annual_interest_rate }}%</td></tr>
+                <tr><th>{% trans "Cadence" %}</th><td>{{ account.get_savings_interest_cadence_display }}</td></tr>
+                <tr><th>{% trans "Simple tax rate" %}</th><td>{{ account.savings_interest_tax_rate }}%</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if account.account_type == "loan" %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Debt Plan" %}</h2>
+        {% if debt %}<a href="{% url 'planner:debt_update' debt.pk %}">{% trans "Edit" %}</a>{% else %}<a href="{% url 'planner:debt_create' %}?account={{ account.pk }}">{% trans "Add" %}</a>{% endif %}
+    </div>
+    {% if debt %}
+        <div class="metrics compact">
+            <div class="metric">
+                <span>{{ debt.name }}</span>
+                <strong>{{ debt.current_principal|money:household.currency }}</strong>
+                <small>{% blocktrans with rate=debt.annual_interest_rate %}{{ rate }}% interest{% endblocktrans %}</small>
+            </div>
+            <div class="metric">
+                <span>{% trans "Monthly payment" %}</span>
+                <strong>{{ debt.monthly_payment|money:household.currency }}</strong>
+                <small>{% if debt.end_month %}{% blocktrans with month=debt.end_month|date:"M Y" %}Until {{ month }}{% endblocktrans %}{% else %}{% trans "No end date" %}{% endif %}</small>
+            </div>
+            <div class="metric">
+                <span>{% trans "Fixed interest" %}</span>
+                <strong>{% if debt.fixed_interest_until %}{{ debt.fixed_interest_until|date:"M Y" }}{% else %}-{% endif %}</strong>
+                <small>{% if debt.refinance_annual_interest_rate %}{% blocktrans with rate=debt.refinance_annual_interest_rate %}Refi {{ rate }}%{% endblocktrans %}{% else %}{% trans "No refinance assumption" %}{% endif %}</small>
+            </div>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h3>{% trans "No debt plan linked" %}</h3>
+            <p class="muted">{% trans "Loan accounts need a debt plan for repayment, interest, and refinance projection." %}</p>
+        </div>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if account.account_type == "depot" %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Depot Holdings" %}</h2>
+        <span class="actions">
+            {% if has_configured_distributions %}
+                <a href="{% url 'planner:income_timeline' %}?source=Depot+distribution">{% trans "See distribution income" %}</a>
+            {% endif %}
+            <a href="{% url 'planner:depot_holding_create' %}?account={{ account.pk }}">{% trans "Add holding" %}</a>
+        </span>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Holdings value" %}</span>
+            <strong>{{ account.holdings_value|money:account.currency }}</strong>
+            <small>{% blocktrans count count=holdings|length %}{{ count }} holding{% plural %}{{ count }} holdings{% endblocktrans %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Difference" %}</span>
+            <strong class="{% if account.depot_difference != 0 %}negative{% endif %}">{{ account.depot_difference|money:account.currency }}</strong>
+            <small>{% trans "Holdings minus account balance" %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Valuation mode" %}</span>
+            <strong>{{ account.get_depot_valuation_display }}</strong>
+            <small>{% trans "Used in projections" %}</small>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Holding" %}</th>
+                    <th>ISIN</th>
+                    <th>{% trans "Ticker" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Quantity" %}</th>
+                    <th>{% trans "Price" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Distribution" %}</th>
+                    <th>{% trans "Payout date" %}</th>
+                    <th>{% trans "Expected payout" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holding in holdings %}
+                    <tr>
+                        <td><a href="{% url 'planner:depot_holding_update' holding.pk %}">{{ holding.name }}</a></td>
+                        <td>{{ holding.isin }}</td>
+                        <td>{{ holding.ticker }}</td>
+                        <td>{{ holding.asset_class }}</td>
+                        <td>{{ holding.quantity }}</td>
+                        <td>{{ holding.latest_price|money:holding.currency }}</td>
+                        <td>{{ holding.current_value|money:holding.currency }}</td>
+                        <td>{% if holding.annual_distribution_rate %}{{ holding.annual_distribution_rate }}% {{ holding.get_distribution_cadence_display|lower }}{% else %}-{% endif %}</td>
+                        <td>{{ holding.payout_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>{% if holding.payout_amount %}{{ holding.payout_amount|money:holding.currency }}{% else %}-{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="10">{% trans "No holdings yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Recurring Cash Flow" %}</h2>
+            <a href="{% url 'planner:rule_create' %}">{% trans "Add rule" %}</a>
+        </div>
+        <div class="list">
+            {% for rule in related_money_rules %}
+                <a class="list-row" href="{% url 'planner:rule_update' rule.pk %}">
+                    <span>
+                        <strong>{{ rule.name }}</strong><br>
+                        <small>
+                            {{ rule.get_kind_display }} · {{ rule.category|default:uncategorized_label }}
+                            {% if not rule.account_id and household.default_operating_account_id == account.id %} · {% trans "default account" %}{% endif %}
+                        </small>
+                    </span>
+                    <small>{{ rule.amount|money:household.currency }} · {{ rule.get_cadence_display }}</small>
+                </a>
+            {% empty %}
+                <div class="list-row">
+                    <span>{% trans "No recurring rules route through this account." %}</span>
+                    <small>-</small>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Related Transfers" %}</h2>
+            <a href="{% url 'planner:transfer_rule_create' %}">{% trans "Add transfer" %}</a>
+        </div>
+        <div class="list">
+            {% for rule in related_transfer_rules %}
+                <a class="list-row" href="{% url 'planner:transfer_rule_update' rule.pk %}">
+                    <span>
+                        <strong>{{ rule.name }}</strong><br>
+                        <small>
+                            {% if rule.person %}{{ rule.person.name }}{% else %}{% trans "Household" %}{% endif %}
+                            · {{ rule.source_account.name|default:liquid_pool_label }} -> {{ rule.target_account.name }}
+                        </small>
+                    </span>
+                    <small>{{ rule.amount|money:household.currency }} · {{ rule.get_cadence_display }}</small>
+                </a>
+            {% endfor %}
+            {% for purchase in related_planned_purchases %}
+                <a class="list-row" href="{% url 'planner:planned_investment_purchase_update' purchase.pk %}">
+                    <span>
+                        <strong>{{ purchase.name }}</strong><br>
+                        <small>{{ purchase.source_account.name|default:liquid_pool_label }} -> {{ purchase.target_account.name }} · {{ purchase.get_asset_type_display }}</small>
+                    </span>
+                    <small>{{ purchase.purchase_amount|money:household.currency }} · {{ purchase.purchase_month|date:"Y-m" }}</small>
+                </a>
+            {% endfor %}
+            {% if not related_transfer_rules and not related_planned_purchases %}
+                <div class="list-row">
+                    <span>{% trans "No transfer rules or planned investment purchases target this account." %}</span>
+                    <small>-</small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Future Cash Flow" %}</h2>
+        </div>
+        <div class="list">
+            {% for item in related_salary_changes %}
+                <a class="list-row" href="{% url 'planner:salary_change_update' item.pk %}">
+                    <span><strong>{{ item.name }}</strong><br><small>{% trans "Salary change" %} · {{ item.person.name }}{% if not item.account_id %} · {% trans "default account" %}{% endif %}</small></span>
+                    <small>{{ item.monthly_net_income_delta|money:household.currency }} · {{ item.start_month|date:"Y-m" }}</small>
+                </a>
+            {% endfor %}
+            {% for item in related_equity_grants %}
+                <a class="list-row" href="{% url 'planner:equity_grant_update' item.pk %}">
+                    <span><strong>{{ item.name }}</strong><br><small>{% trans "Equity grant" %} · {{ item.person.name }}{% if not item.account_id %} · {% trans "default account" %}{% endif %}</small></span>
+                    <small>{{ item.net_vest_value|money:item.currency }} · {{ item.first_vest_month|date:"Y-m" }}</small>
+                </a>
+            {% endfor %}
+            {% for item in related_true_expenses %}
+                <a class="list-row" href="{% url 'planner:true_expense_update' item.pk %}">
+                    <span><strong>{{ item.name }}</strong><br><small>{% trans "True expense" %} · {{ item.category|default:uncategorized_label }}{% if not item.account_id %} · {% trans "default account" %}{% endif %}</small></span>
+                    <small>{{ item.amount|money:household.currency }} · {{ item.first_due_month|date:"Y-m" }}</small>
+                </a>
+            {% empty %}
+                {% if not related_salary_changes and not related_equity_grants %}
+                    <div class="list-row">
+                        <span>{% trans "No future cash-flow items route through this account." %}</span>
+                        <small>-</small>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Notes" %}</h2>
+        </div>
+        <div class="empty-state">
+            <p class="muted">{% if account.notes %}{{ account.notes }}{% else %}{% trans "No notes yet." %}{% endif %}</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Projected Account Ledger" %}{% if selected_ledger_year %} · {{ selected_ledger_year }}{% endif %}</h2>
+            <p class="muted">{% trans "Forecast events that directly change this account. This follows routed rules, transfers, savings interest, equity grants, true expenses, private loans, debt payments, and depot payouts where the account is known." %}</p>
+        </div>
+        <a href="{% url 'planner:account_statement_export' account.pk %}">{% trans "Export full statement CSV" %}</a>
+    </div>
+    {% if ledger_years %}
+    <form method="get" class="ledger-filters">
+        <label>{% trans "Year" %}
+            <select name="ledger_year" onchange="this.form.submit()">
+                {% for y in ledger_years %}<option value="{{ y }}"{% if y == selected_ledger_year %} selected{% endif %}>{{ y }}</option>{% endfor %}
+            </select>
+        </label>
+        <span class="ledger-pager">
+            {% if prev_ledger_year %}<a class="button secondary" href="?ledger_year={{ prev_ledger_year }}">‹ {{ prev_ledger_year }}</a>{% endif %}
+            {% if next_ledger_year %}<a class="button secondary" href="?ledger_year={{ next_ledger_year }}">{{ next_ledger_year }} ›</a>{% endif %}
+        </span>
+        <noscript><button class="button secondary" type="submit">{% trans "Apply" %}</button></noscript>
+    </form>
+    {% endif %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Amount" %}</th>
+                    <th>{% trans "Ending balance" %}</th>
+                    <th>{% trans "Note" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ledger_rows %}
+                    <tr>
+                        <td>{{ row.month|date:"Y-m" }}</td>
+                        <td>{{ row.section }}</td>
+                        <td>{{ row.name }}</td>
+                        <td class="{% if row.amount < 0 %}negative{% endif %}">{{ row.amount|signed_money:account.currency }}</td>
+                        <td class="{% if row.ending_balance < 0 %}negative{% endif %}">{{ row.ending_balance|money:account.currency }}</td>
+                        <td>{{ row.note|default:"-" }}</td>
+                        <td><a href="{% url 'planner:projection_audit' row.index %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No forecast events are routed directly through this account yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Account Forecast" %}</h2>
+            <p class="muted">{% trans "First 36 projected months for this account. Income and expenses are included here when routed to this account or through the household default operating account." %}</p>
+        </div>
+        {% if lowest_forecast %}
+            <a href="{% url 'planner:projection_audit' lowest_forecast.index %}">{% trans "Lowest month detail" %}</a>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Month" %}</th>
+                    <th>{% trans "Movement" %}</th>
+                    <th>{% trans "Projected balance" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% now "Y-m" as current_month %}
+                {% for row in forecast_rows %}
+                    <tr{% if row.month|date:"Y-m" == current_month %} class="current-period"{% endif %}>
+                        <td>{{ row.month|date:"Y-m" }}</td>
+                        <td class="{% if row.change < 0 %}negative{% endif %}">
+                            {{ row.change|signed_money:account.currency }}
+                            {% if row.is_largest_increase %}<span class="status-pill ok">{% trans "largest inflow" %}</span>{% endif %}
+                            {% if row.is_largest_decrease %}<span class="status-pill warning">{% trans "largest outflow" %}</span>{% endif %}
+                        </td>
+                        <td class="{% if row.balance < 0 %}negative{% endif %}">{{ row.balance|money:account.currency }}</td>
+                        <td><a href="{% url 'planner:projection_audit' row.index %}">{% trans "Why did this move?" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">{% trans "No account-level forecast available for this account." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ snapshot.name }} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "open" as open_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Snapshot" %}</p>
+        <h1>{{ snapshot.name }}</h1>
+        <p class="muted">{% blocktrans with date=snapshot.snapshot_date|date:"Y-m-d" created=snapshot.created_at|date:"Y-m-d H:i" %}{{ date }} · created {{ created }}{% endblocktrans %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:snapshot_compare' snapshot.pk %}">{% trans "Compare current" %}</a>
+        <a class="button secondary" href="{% url 'planner:snapshot_review' %}">{% trans "Annual review" %}</a>
+        <a class="button secondary" href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+{% if snapshot.notes %}
+<section class="empty-state">
+    <h2>{% trans "Notes" %}</h2>
+    <p class="muted">{{ snapshot.notes }}</p>
+</section>
+{% endif %}
+
+<section class="metrics">
+    <div class="metric">
+        <span>{% trans "Liquid" %}</span>
+        <strong>{{ summary.totals.liquid }} {{ summary.household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Invested" %}</span>
+        <strong>{{ summary.totals.invested }} {{ summary.household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Liabilities" %}</span>
+        <strong>{{ summary.totals.liabilities }} {{ summary.household.currency }}</strong>
+    </div>
+    <div class="metric">
+        <span>{% trans "Net worth" %}</span>
+        <strong>{{ summary.totals.net_worth }} {{ summary.household.currency }}</strong>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric"><span>{% trans "Accounts" %}</span><strong>{{ summary.counts.accounts }}</strong></div>
+    <div class="metric"><span>{% trans "Holdings" %}</span><strong>{{ summary.counts.holdings }}</strong></div>
+    <div class="metric"><span>{% trans "Debts" %}</span><strong>{{ summary.counts.debts }}</strong></div>
+    <div class="metric"><span>{% trans "Private loans" %}</span><strong>{{ summary.counts.private_loans|default:0 }}</strong></div>
+    <div class="metric"><span>{% trans "Rules" %}</span><strong>{{ summary.counts.rules }}</strong></div>
+    <div class="metric"><span>{% trans "Transfers" %}</span><strong>{{ summary.counts.transfer_rules|default:0 }}</strong></div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Accounts" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Balance" %}</th>
+                    <th>{% trans "Effective" %}</th>
+                    <th>{% trans "As of" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in summary.accounts %}
+                    <tr>
+                        <td>{{ account.name }}</td>
+                        <td>{{ account.type }}</td>
+                        <td>{{ account.balance }} {{ account.currency }}</td>
+                        <td>{{ account.effective_balance }} {{ account.currency }}</td>
+                        <td>{{ account.as_of_date|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">{% trans "No accounts in snapshot." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Private Loans" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Borrower" %}</th>
+                    <th>{% trans "Repayment account" %}</th>
+                    <th>{% trans "Principal owed" %}</th>
+                    <th>{% trans "Interest" %}</th>
+                    <th>{% trans "Manual net interest" %}</th>
+                    <th>{% trans "Principal repayment" %}</th>
+                    <th>{% trans "Repayment window" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for loan in summary.private_loans %}
+                    <tr>
+                        <td>{{ loan.name }}</td>
+                        <td>{{ loan.borrower|default:"-" }}</td>
+                        <td>{{ loan.source_account|default:"-" }}</td>
+                        <td>{{ loan.current_principal }} {{ loan.currency }}</td>
+                        <td>{% blocktrans with rate=loan.annual_interest_rate tax=loan.interest_tax_rate %}{{ rate }}% · {{ tax }}% tax{% endblocktrans %}</td>
+                        <td>{{ loan.monthly_interest_income }} {{ loan.currency }}</td>
+                        <td>{{ loan.monthly_principal_repayment }} {{ loan.currency }}</td>
+                        <td>{% blocktrans with start=loan.start_month|default:"-" end=loan.end_month|default:open_label %}{{ start }} to {{ end }}{% endblocktrans %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">{% trans "No private loans in snapshot." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Holdings" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Account" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>ISIN</th>
+                    <th>{% trans "Class" %}</th>
+                    <th>{% trans "Quantity" %}</th>
+                    <th>{% trans "Value" %}</th>
+                    <th>{% trans "Expected payout" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holding in summary.holdings %}
+                    <tr>
+                        <td>{{ holding.account }}</td>
+                        <td>{{ holding.name }}</td>
+                        <td>{{ holding.isin|default:"-" }}</td>
+                        <td>{{ holding.asset_class }}</td>
+                        <td>{{ holding.quantity }}</td>
+                        <td>{{ holding.current_value }} {{ holding.currency }}</td>
+                        <td>{% if holding.payout_amount %}{{ holding.payout_amount }} {{ holding.currency }}{% else %}-{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7">{% trans "No holdings in snapshot." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

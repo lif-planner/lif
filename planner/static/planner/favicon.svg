@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LiF">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="0.55" stop-color="#166534"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="22" y1="15" x2="48" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <path d="M15 43.5 27.6 30.9l7.2 7.2L49 23.8" fill="none" stroke="#ecfdf5" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44" cy="20" r="8.5" fill="url(#coin)" stroke="#fff7ed" stroke-width="2"/>
+  <path d="M40.8 20h6.4M44 16.8v6.4" stroke="#7c2d12" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M16 48h32" stroke="#d1fae5" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
+</svg>

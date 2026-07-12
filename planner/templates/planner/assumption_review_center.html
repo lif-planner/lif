@@ -1,0 +1,84 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Assumption Reviews" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Assumption reviews" as review_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=review_label %}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Data health" %}</p>
+        <h1>{% trans "Assumption review center" %}</h1>
+        <p class="muted">{% trans "A focused queue for stale, default, and inherited planning assumptions before you trust a long-range forecast." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:assumptions_registry' %}">{% trans "Full registry" %}</a>
+        <a class="button secondary" href="{% url 'planner:planning_review_checklist' %}">{% trans "Checklist" %}</a>
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="assumptions" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Needs review" %}</span>
+        <strong class="{% if review_center.action_count %}negative{% endif %}">{{ review_center.action_count }}</strong>
+        <small>{% trans "Expired, default, or inherited assumptions." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Expired" %}</span>
+        <strong class="{% if review_center.confidence_counts.expired %}negative{% endif %}">{{ review_center.confidence_counts.expired }}</strong>
+        <small>{% blocktrans with days=review_center.review_expiry_days %}Older than {{ days }} days.{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Defaults" %}</span>
+        <strong class="{% if review_center.confidence_counts.default %}negative{% endif %}">{{ review_center.confidence_counts.default }}</strong>
+        <small>{% trans "Still using built-in planning values." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Reviewed" %}</span>
+        <strong>{{ review_center.reviewed_count }}</strong>
+        <small>{% trans "Fresh or explicitly configured assumptions." %}</small>
+    </div>
+</section>
+
+{% for queue in review_center.queues %}
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{{ queue.label }}</h2>
+                <p class="muted">{{ queue.description }}</p>
+            </div>
+            <span class="status-pill {% if queue.key == 'reviewed' %}ok{% elif queue.rows %}warning{% else %}info{% endif %}">
+                {% blocktrans count count=queue.rows|length %}{{ count }} item{% plural %}{{ count }} items{% endblocktrans %}
+            </span>
+        </div>
+        {% if queue.rows %}
+            <div class="issue-list">
+                {% for row in queue.rows %}
+                    <div class="issue-row {% if queue.key == 'reviewed' %}info{% else %}warning{% endif %}">
+                        <div>
+                            <span class="status-pill {{ row.confidence.class }}">{{ row.confidence.label }}</span>
+                            <h3>{{ row.label }}</h3>
+                            <p class="muted">{{ row.group_label }} · {{ row.value }} · {{ row.confidence.detail }}</p>
+                            {% if row.impact %}<small>{% trans "Impact" %}: {{ row.impact }}</small><br>{% endif %}
+                            <small>{{ row.detail }}</small>
+                        </div>
+                        <div class="actions">
+                            {% if row.url %}<a class="button secondary" href="{{ row.url }}">{% trans "Edit source" %}</a>{% endif %}
+                            <a class="button secondary" href="{% url 'planner:assumption_review_edit' %}?review_key={{ row.review_key }}">{% trans "Review" %}</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <h3>{% trans "Nothing here" %}</h3>
+                <p>{% trans "This queue is clear for the active household." %}</p>
+            </div>
+        {% endif %}
+    </section>
+{% endfor %}
+{% endblock %}

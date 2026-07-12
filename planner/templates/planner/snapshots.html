@@ -1,0 +1,61 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Snapshots" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Snapshots" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Freeze the current planning baseline before imports, cleanup, or annual reviews." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:snapshot_review' %}">{% trans "Annual review" %}</a>
+        <a class="button secondary" href="{% url 'planner:snapshot_projection_changes' %}">{% trans "Projection changes" %}</a>
+        {% if baseline_snapshot %}<a class="button secondary" href="{% url 'planner:snapshot_compare' baseline_snapshot.pk %}">{% trans "Compare current to baseline" %}</a>{% endif %}
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Create Snapshot" %}</h2>
+        </div>
+        <form method="post" class="form-panel">
+            {% csrf_token %}
+            <p class="form-hint">{% trans "A snapshot stores summary totals and the current account, holding, debt, rule, and cash goal baseline." %}</p>
+            {{ form.as_div }}
+            <div class="form-actions">
+                <button class="button" type="submit">{% trans "Create snapshot" %}</button>
+            </div>
+        </form>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Existing Snapshots" %}</h2>
+        </div>
+        <div class="list">
+            {% for snapshot in snapshots %}
+                <a class="list-row" href="{% url 'planner:snapshot_detail' snapshot.pk %}">
+                    <span>
+                        <strong>{{ snapshot.name }}</strong><br>
+                        <small>
+                            <span class="status-pill info">{{ snapshot.get_snapshot_type_display }}</span>
+                            {% if snapshot.is_baseline %}<span class="status-pill ok">{% trans "Baseline" %}</span>{% endif %}
+                            {{ snapshot.snapshot_date|date:"Y-m-d" }} · {{ snapshot.summary.totals.net_worth|default:"0.00" }} {{ snapshot.summary.household.currency|default:household.currency }}
+                        </small>
+                    </span>
+                    <small>{{ snapshot.created_at|date:"Y-m-d H:i" }}</small>
+                </a>
+            {% empty %}
+                <div class="list-row">
+                    <span>{% trans "No snapshots yet." %}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

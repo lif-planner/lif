@@ -1,0 +1,11 @@
+# Copy this file to group_vars/lif/vault.yml and encrypt it:
+#
+# ansible-vault encrypt deploy/ansible/group_vars/lif/vault.yml
+#
+# Generate a value with:
+# python3 -c 'import secrets; print(secrets.token_urlsafe(64))'
+
+lif_django_secret_key: replace-with-a-long-random-secret
+
+# Required only when lif_demo_deployment and lif_demo_require_login are both true.
+lif_demo_password: replace-with-a-demo-password-of-at-least-12-characters

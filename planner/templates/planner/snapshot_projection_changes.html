@@ -1,0 +1,131 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Projection Changes" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Snapshots" %}</p>
+        <h1>{% trans "Projection changed since last snapshot" %}</h1>
+        {% if snapshot %}
+            <p class="muted">{% blocktrans with name=snapshot.name date=snapshot.snapshot_date|date:"Y-m-d" %}Latest snapshot: {{ name }} from {{ date }} compared with the current forecast.{% endblocktrans %}</p>
+        {% else %}
+            <p class="muted">{% trans "Create a snapshot first to compare a frozen forecast with the current forecast." %}</p>
+        {% endif %}
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:snapshots' %}">{% trans "Snapshots" %}</a>
+        {% if snapshot %}<a class="button secondary" href="{% url 'planner:snapshot_detail' snapshot.pk %}">{% trans "Snapshot" %}</a>{% endif %}
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+{% if comparison %}
+    <section class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Changed years" %}</span>
+            <strong class="{% if comparison.changed_count %}negative{% endif %}">{{ comparison.changed_count }}</strong>
+            <small>{% trans "Years where at least one projection value moved." %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Changed drivers" %}</span>
+            <strong class="{% if drivers.change_count %}negative{% endif %}">{{ drivers.change_count }}</strong>
+            <small>{% trans "Input changes that may explain the forecast movement." %}</small>
+        </div>
+        {% if comparison.endpoint %}
+            {% for field in comparison.endpoint.fields %}
+                {% if field.key == "net_worth" or field.key == "liquid_balance" or field.key == "invested_balance" %}
+                    <div class="metric">
+                        <span>{% blocktrans with label=field.label year=comparison.endpoint.label %}{{ label }} in {{ year }}{% endblocktrans %}</span>
+                        <strong>{{ field.current_value }} {{ comparison.currency }}</strong>
+                        <small>{% blocktrans with value=field.snapshot_value %}Snapshot {{ value }}{% endblocktrans %} · {% trans "Delta" %} <span class="{% if field.direction == 'negative' %}negative{% endif %}">{{ field.delta }}</span></small>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "Likely change drivers" %}</h2>
+                <p class="muted">{% trans "These are changed inputs detected between the snapshot and current data. Use them as a checklist for why the projection moved." %}</p>
+            </div>
+        </div>
+        <div class="grid three">
+            {% for group in drivers.groups %}
+                <div>
+                    <div class="section-heading">
+                        <div>
+                            <h3>{{ group.label }}</h3>
+                            <p class="muted">{{ group.description }}</p>
+                        </div>
+                    </div>
+                    <div class="issue-list">
+                        {% for row in group.rows %}
+                            <div class="issue-row {% if row.status == 'changed' %}warning{% else %}info{% endif %}">
+                                <div>
+                                    <span class="status-pill {% if row.status == 'changed' %}warning{% else %}info{% endif %}">{{ row.status }}</span>
+                                    <h3>{{ row.label }}</h3>
+                                    <p class="muted">{{ row.detail }}</p>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="empty-state">
+                                <h3>{% trans "No changes" %}</h3>
+                                <p>{% trans "No changed inputs detected in this group." %}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "Yearly forecast deltas" %}</h2>
+                <p class="muted">{% trans "Compares the projection stored in the latest snapshot with the projection generated from current data." %}</p>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% trans "Year" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Liquid delta" %}</th>
+                        <th>{% trans "Invested delta" %}</th>
+                        <th>{% trans "Debt delta" %}</th>
+                        <th>{% trans "Net worth delta" %}</th>
+                        <th>{% trans "Income delta" %}</th>
+                        <th>{% trans "Expenses delta" %}</th>
+                        <th>{% trans "Net cash delta" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in comparison.rows %}
+                        <tr>
+                            <td>{{ row.label }}</td>
+                            <td><span class="status-pill {% if row.status == 'changed' %}warning{% elif row.status == 'same' %}ok{% else %}info{% endif %}">{{ row.status }}</span></td>
+                            {% for field in row.fields %}
+                                <td class="{% if field.direction == 'negative' %}negative{% endif %}">{{ field.delta }} {{ comparison.currency }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="9">{% trans "No yearly projection rows to compare." %}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% else %}
+    <section class="empty-state">
+        <h3>{% trans "No snapshot yet" %}</h3>
+        <p>{% trans "Create a snapshot once your current forecast looks trustworthy. Future changes can then be compared against it." %}</p>
+        <a class="button" href="{% url 'planner:snapshots' %}">{% trans "Create snapshot" %}</a>
+    </section>
+{% endif %}
+{% endblock %}

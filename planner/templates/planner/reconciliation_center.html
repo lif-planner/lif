@@ -1,0 +1,371 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Reconciliation" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Reconciliation" as reconciliation_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=reconciliation_label %}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Data health" %}</p>
+        <h1>{% trans "Reconciliation" %}</h1>
+        <p class="muted">{% trans "Check whether imported, manual, and tracked accounts still match the foundation used by the forecast." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Import center" %}</a>
+        <a class="button secondary" href="{% url 'planner:moneymoney_mappings' %}">{% trans "MoneyMoney mappings" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="reconciliation" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Next action" %}</span>
+        <strong class="{% if reconciliation.next_item %}negative{% endif %}">
+            {% if reconciliation.next_item %}{% trans "Review" %}{% else %}{% trans "Clear" %}{% endif %}
+        </strong>
+        <small>{% if reconciliation.next_item %}{{ reconciliation.next_item.label }}{% else %}{% trans "No import reconciliation action is currently queued." %}{% endif %}</small>
+    </div>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=all">
+        <span>{% trans "Accounts" %}</span>
+        <strong>{{ account_rows|length }}</strong>
+        <small>{% trans "Local accounts in the active household." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=stale">
+        <span>{% trans "Stale" %}</span>
+        <strong class="{% if stale_count %}negative{% endif %}">{{ stale_count }}</strong>
+        <small>{% trans "Valuation date older than 45 days." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=missing_dates">
+        <span>{% trans "Missing dates" %}</span>
+        <strong class="{% if missing_date_count %}negative{% endif %}">{{ missing_date_count }}</strong>
+        <small>{% trans "Accounts without a valuation date." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=outside_net_worth">
+        <span>{% trans "Outside net worth" %}</span>
+        <strong>{{ external_count }}</strong>
+        <small>{% trans "For example child-owned depots." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=depot_drift">
+        <span>{% trans "Depot drift" %}</span>
+        <strong class="{% if depot_difference_count %}negative{% endif %}">{{ depot_difference_count }}</strong>
+        <small>{% trans "Depot balance differs from holdings." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:reconciliation_center' %}?focus=duplicate_names">
+        <span>{% trans "Duplicate names" %}</span>
+        <strong class="{% if duplicate_name_count %}negative{% endif %}">{{ duplicate_name_count }}</strong>
+        <small>{% trans "Safe with source keys, but worth reviewing." %}</small>
+    </a>
+</section>
+
+{% if reconciliation.next_item %}
+<section>
+    <div class="issue-row {{ reconciliation.next_item.severity }}">
+        <div>
+            <span class="status-pill {{ reconciliation.next_item.severity }}">{% trans "next" %}</span>
+            <h3>{{ reconciliation.next_item.label }}</h3>
+            <p class="muted">{{ reconciliation.next_item.detail }}</p>
+        </div>
+        <a class="button secondary" href="{% url 'planner:import_runbook' %}">{% trans "Open runbook" %}</a>
+    </div>
+</section>
+{% endif %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Clean dry-runs" %}</span>
+        <strong>{{ reconciliation.clean_pending_batches|length }}</strong>
+        <small>{% trans "Ready to apply or discard." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Warning dry-runs" %}</span>
+        <strong class="{% if reconciliation.warning_pending_batches %}negative{% endif %}">{{ reconciliation.warning_pending_batches|length }}</strong>
+        <small>{% trans "Review import rows before applying." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Blocked batches" %}</span>
+        <strong class="{% if reconciliation.blocked_batches %}negative{% endif %}">{{ reconciliation.blocked_batches|length }}</strong>
+        <small>{% trans "Errors or missing columns." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "MoneyMoney selected" %}</span>
+        <strong>{{ mapping_review.import_enabled_count }}</strong>
+        <small>{% blocktrans with disabled=mapping_review.disabled_count %}{{ disabled }} disabled source(s).{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Needs mapping review" %}</span>
+        <strong class="{% if mapping_review.needs_review_count %}negative{% endif %}">{{ mapping_review.needs_review_count }}</strong>
+        <small>{% trans "Sources where type/selection should be checked." %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Account Sources" %}</h2>
+            <p class="muted">{% trans "Where local account values came from. Manual accounts are fine; MoneyMoney accounts should have stable source keys." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for source, count in source_counts.items %}
+            <div class="metric">
+                <span>{{ source }}</span>
+                <strong>{{ count }}</strong>
+                <small>{% trans "account(s)" %}</small>
+            </div>
+        {% empty %}
+            <div class="metric">
+                <span>{% trans "No accounts" %}</span>
+                <strong>0</strong>
+                <small>{% trans "Add or import accounts first." %}</small>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Data Confidence" %}</h2>
+            <p class="muted">{% trans "A quick account-level confidence score based on valuation freshness, source matching, duplicate names, and depot reconciliation." %}</p>
+        </div>
+        <a href="{% url 'planner:data_quality' %}">{% trans "Open quality checks" %}</a>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Average confidence" %}</span>
+            <strong class="{% if data_confidence.average_score < 70 %}negative{% endif %}">{{ data_confidence.average_score }}%</strong>
+            <small>{% blocktrans with total=data_confidence.total %}Across {{ total }} account(s){% endblocktrans %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "High" %}</span>
+            <strong>{{ data_confidence.high_count }}</strong>
+            <small>{% trans "90-100%" %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Medium" %}</span>
+            <strong class="{% if data_confidence.medium_count %}negative{% endif %}">{{ data_confidence.medium_count }}</strong>
+            <small>{% trans "70-89%" %}</small>
+        </div>
+        <div class="metric">
+            <span>{% trans "Low" %}</span>
+            <strong class="{% if data_confidence.low_count %}negative{% endif %}">{{ data_confidence.low_count }}</strong>
+            <small>{% trans "Below 70%" %}</small>
+        </div>
+    </div>
+    <div class="section-heading subtle">
+        <div>
+            <h3>{% trans "Confidence action queue" %}</h3>
+            <p class="muted">{% trans "The fastest fixes before relying on account-level projections." %}</p>
+        </div>
+    </div>
+    <div class="metrics compact">
+        {% for bucket in data_confidence.action_buckets %}
+            <a class="metric link-metric" href="{{ bucket.action_url }}">
+                <span>{{ bucket.label }}</span>
+                <strong class="{% if bucket.accounts %}negative{% endif %}">{{ bucket.accounts|length }}</strong>
+                <small>{{ bucket.detail }}</small>
+                {% if bucket.accounts %}
+                    <small>
+                        {% for item in bucket.accounts|slice:":3" %}
+                            {{ item.account.name }}{% if not forloop.last %} · {% endif %}
+                        {% endfor %}
+                    </small>
+                {% else %}
+                    <small>{% trans "No accounts currently queued." %}</small>
+                {% endif %}
+            </a>
+        {% endfor %}
+    </div>
+    <div class="metrics compact">
+        {% for item in data_confidence.legend %}
+            <div class="metric">
+                <span><span class="status-pill {{ item.severity }}">{{ item.level }}</span></span>
+                <strong>{{ item.range }}</strong>
+                <small>{{ item.detail }}</small>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Lowest confidence account" %}</th>
+                    <th>{% trans "Score" %}</th>
+                    <th>{% trans "Drivers" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data_confidence.lowest_accounts %}
+                    <tr>
+                        <td><a href="{% url 'planner:account_detail' item.account.pk %}">{{ item.account.name }}</a><br><small>{{ item.account.get_account_type_display }} · {{ item.account.owner_label }}</small></td>
+                        <td><span class="status-pill {{ item.severity }}">{{ item.score }}% · {{ item.level }}</span></td>
+                        <td>
+                            {% for deduction in item.deductions %}
+                                <small>
+                                    {{ deduction.reason }} -{{ deduction.points }}
+                                    {% if deduction.fix_url %} · <a href="{{ deduction.fix_url }}">{{ deduction.fix_label }}</a>{% endif %}
+                                </small>{% if not forloop.last or item.notes %}<br>{% endif %}
+                            {% endfor %}
+                            {% for note in item.notes %}
+                                <small>{{ note.label }} · {% trans "no score deduction" %}</small>{% if not forloop.last %}<br>{% endif %}
+                            {% empty %}
+                                {% if not item.deductions %}<small>{% trans "No active account-level issues" %}</small>{% endif %}
+                            {% endfor %}
+                        </td>
+                        <td><a href="{% url 'planner:account_detail' item.account.pk %}">{% trans "Open account" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">{% trans "No accounts to score yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Account Reconciliation" %}</h2>
+            <p class="muted">{% trans "Review source, valuation date, net-worth inclusion, depot valuation, and planning links for each account." %}</p>
+        </div>
+        <span class="muted">{% blocktrans with count=filtered_account_rows|length total=account_rows|length %}{{ count }} of {{ total }} account(s){% endblocktrans %}</span>
+    </div>
+    <form method="get" class="ledger-filters">
+        <label>
+            {% trans "Search" %}
+            <input type="search" name="q" value="{{ search_query }}" placeholder="{% trans 'Account, source, warning' %}">
+        </label>
+        <input type="hidden" name="focus" value="{{ selected_focus }}">
+        <button class="button secondary" type="submit">{% trans "Search" %}</button>
+        {% if search_query or selected_focus != "all" %}
+            <a class="button secondary" href="{% url 'planner:reconciliation_center' %}">{% trans "Clear" %}</a>
+        {% endif %}
+    </form>
+    <section class="quality-filters">
+        <div class="filter-pills">
+            {% for key, label in focus_options %}
+                <a class="status-pill {% if selected_focus == key %}ok{% else %}info{% endif %}" href="?focus={{ key }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
+                    {{ label }} · {{ focus_counts|get_item:key }}
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+    <div class="issue-list">
+        {% for group in issue_groups %}
+            <div class="issue-row {{ group.severity }}">
+                <div>
+                    <span class="status-pill {{ group.severity }}">{{ group.label }}</span>
+                    <h3>{% blocktrans with issues=group.issue_count accounts=group.account_count %}{{ issues }} issue(s) across {{ accounts }} account(s){% endblocktrans %}</h3>
+                    <div class="list">
+                        {% for item in group.rows %}
+                            <div class="list-row">
+                                <span>
+                                    <strong><a href="{% url 'planner:account_detail' item.account.pk %}">{{ item.account.name }}</a></strong><br>
+                                    {% for issue in item.issues %}
+                                        <small>{{ issue.label }}</small>{% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                </span>
+                                <small>
+                                    {% for action in item.actions|slice:":2" %}
+                                        <a href="{{ action.url }}">{{ action.label }}</a>{% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="empty-state">
+                <h3>{% trans "No reconciliation issues in this view" %}</h3>
+                <p class="muted">{% trans "The current filters do not show stale values, depot drift, missing keys, or informational account notes." %}</p>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Account" %}</th>
+                    <th>{% trans "Source" %}</th>
+                    <th>{% trans "Balance" %}</th>
+                    <th>{% trans "As of" %}</th>
+                    <th>{% trans "Net worth" %}</th>
+                    <th>{% trans "Depot valuation" %}</th>
+                    <th>{% trans "Links" %}</th>
+                    <th>{% trans "Review" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in filtered_account_rows %}
+                    {% with account=row.account %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'planner:account_detail' account.pk %}">{{ account.name }}</a>
+                            <br><small>{{ account.get_account_type_display }} · {{ account.owner_label }}</small>
+                            {% if account.moneymoney_account_key %}<br><small>{{ account.moneymoney_account_key }}</small>{% endif %}
+                        </td>
+                        <td>{{ account.get_source_display }}</td>
+                        <td>{{ account.effective_balance|money:account.currency }}</td>
+                        <td>
+                            {% if account.as_of_date %}
+                                {{ account.as_of_date|date:"Y-m-d" }}
+                                {% if row.stale_days is not None %}<br><small>{% blocktrans with days=row.stale_days %}{{ days }} days old{% endblocktrans %}</small>{% endif %}
+                            {% else %}
+                                <span class="negative">{% trans "missing" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if account.counts_in_household_net_worth %}
+                                <span class="status-pill ok">{% trans "included" %}</span>
+                            {% else %}
+                                <span class="status-pill info">{% trans "separate" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if account.account_type == "depot" %}
+                                {{ account.get_depot_valuation_display }}
+                                <br><small>{% blocktrans with count=row.holdings_count value=row.holdings_value|money:account.currency %}{{ count }} holding(s), {{ value }}{% endblocktrans %}</small>
+                                {% if row.depot_difference %}
+                                    <br><small class="negative">{% blocktrans with diff=row.depot_difference|money:account.currency %}drift {{ diff }}{% endblocktrans %}</small>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ row.related_total }}</strong>
+                            <br>
+                            {% for label, count in row.related_counts.items %}
+                                {% if count %}<small>{{ label }}: {{ count }}</small><br>{% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for issue in row.issues %}
+                                <span class="status-pill {{ issue.severity }}">{{ issue.label }}</span><br>
+                            {% empty %}
+                                <span class="status-pill ok">{% trans "OK" %}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for action in row.actions %}
+                                <a href="{{ action.url }}">{{ action.label }}</a><br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                {% empty %}
+                    <tr><td colspan="9">{% trans "No accounts match the current filters." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

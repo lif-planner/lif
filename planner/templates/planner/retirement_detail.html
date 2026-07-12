@@ -1,0 +1,176 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Retirement" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Retirement detail" %}</p>
+        <h1>{% trans "German pension planning" %}</h1>
+        <p class="muted">{% trans "Statutory pension points, private pensions, and projected retirement income." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button" href="{% url 'planner:retirement_plan_create' %}">{% trans "Add pension" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Plans" %}</span>
+        <strong>{{ plan_rows|length }}</strong>
+        <small>{% blocktrans count count=adult_count %}{{ count }} adult in household{% plural %}{{ count }} adults in household{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Current statutory value" %}</span>
+        <strong>{{ total_current_statutory|money:household.currency }}</strong>
+        <small>{% trans "From current pension points" %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Projected monthly start" %}</span>
+        <strong>{{ total_at_start|money:household.currency }}</strong>
+        <small>{% trans "Statutory plus private pensions" %}</small>
+    </div>
+</section>
+
+{% if retirement_health_issues %}
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Retirement Health" %}</h2>
+        <a href="{% url 'planner:data_quality' %}?category=Retirement">{% trans "Open quality" %}</a>
+    </div>
+    <div class="issue-list">
+        {% for item in retirement_health_issues %}
+            <div class="issue-row {{ item.severity }}">
+                <div>
+                    <span class="status-pill {{ item.severity }}">{{ item.severity }}</span>
+                    <h3>{{ item.title }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.action_url %}
+                    <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Retirement Gap" %}</h2>
+        <span class="muted">{% trans "Cash goal coverage after retirement income begins" %}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Year" %}</th>
+                    <th>{% trans "Cash goal" %}</th>
+                    <th>{% trans "Today's money" %}</th>
+                    <th>{% trans "Retirement income" %}</th>
+                    <th>{% trans "Net retirement" %}</th>
+                    <th>{% trans "Other income" %}</th>
+                    <th>{% trans "ETF/cash draw need" %}</th>
+                    <th>{% trans "Tax-aware draw" %}</th>
+                    <th>{% trans "Draw % of depot" %}</th>
+                    <th>{% trans "Risk" %}</th>
+                    <th>{% trans "Audit" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in retirement_gap_rows %}
+                    <tr>
+                        <td>{{ row.item.label }}</td>
+                        <td>{{ row.item.annual_cash_goal|money:household.currency }}</td>
+                        <td>{{ row.real_cash_goal|money:household.currency }}</td>
+                        <td>{{ row.item.retirement_income|money:household.currency }}</td>
+                        <td>{{ row.net_retirement_income|money:household.currency }}<br><small>{% blocktrans with amount=row.retirement_deductions|money:household.currency %}{{ amount }} est. deductions{% endblocktrans %}</small></td>
+                        <td>{{ row.other_income|money:household.currency }}</td>
+                        <td class="{% if row.draw_need > 0 %}negative{% endif %}">{{ row.draw_need|money:household.currency }}<br><small>{% blocktrans with amount=row.real_draw_need|money:household.currency %}{{ amount }} today{% endblocktrans %}</small></td>
+                        <td class="{% if row.gross_draw_for_net_cash > 0 %}negative{% endif %}">{{ row.gross_draw_for_net_cash|money:household.currency }}<br><small>{% blocktrans with amount=row.capital_tax_drag|money:household.currency %}{{ amount }} est. tax drag{% endblocktrans %}</small></td>
+                        <td class="{% if row.draw_percent > 4 %}negative{% endif %}">{{ row.draw_percent|floatformat:2 }}%</td>
+                        <td><span class="status-pill {% if row.risk_level == 'warning' %}warning{% else %}ok{% endif %}">{{ row.risk_level }}</span></td>
+                        <td><a href="{% url 'planner:projection_year_audit' row.index %}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="11">{% trans "No retirement gap rows in the current projection horizon. Extend the planning horizon or add retirement plans." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="muted">{% trans "Tax-aware values are rough planning estimates based on household percentage assumptions. They are not a German tax calculation." %}</p>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Plans" %}</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Plan" %}</th>
+                    <th>{% trans "Person" %}</th>
+                    <th>{% trans "Vehicle" %}</th>
+                    <th>{% trans "Current points" %}</th>
+                    <th>{% trans "Expected points" %}</th>
+                    <th>{% trans "Current statutory" %}</th>
+                    <th>{% trans "Projected statutory" %}</th>
+                    <th>{% trans "Private" %}</th>
+                    <th>{% trans "Monthly start" %}</th>
+                    <th>{% trans "Start" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in plan_rows %}
+                    <tr>
+                        <td><a href="{% url 'planner:retirement_plan_update' row.plan.pk %}">{{ row.plan.name }}</a></td>
+                        <td>{{ row.plan.person.name }}</td>
+                        <td>{{ row.plan.get_vehicle_type_display }}</td>
+                        <td>{{ row.plan.current_pension_points }}</td>
+                        <td>{{ row.projected_points|floatformat:3 }}</td>
+                        <td>{{ row.plan.monthly_pension_from_current_points|money:household.currency }}</td>
+                        <td>{{ row.statutory_at_start|money:household.currency }}</td>
+                        <td>{{ row.plan.private_monthly_pension|money:household.currency }}</td>
+                        <td>{{ row.total_at_start|money:household.currency }}</td>
+                        <td>{{ row.plan.retirement_start_month|date:"M Y" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="10">{% trans "No retirement plans yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="grid two">
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Projection Income" %}</h2>
+        </div>
+        <div class="list">
+            {% for item in retirement_years %}
+                <a class="list-row" href="{% url 'planner:projection_year_audit' item.index %}">
+                    <span>{{ item.item.label }}</span>
+                    <small>{{ item.item.retirement_income|money:household.currency }}</small>
+                </a>
+            {% empty %}
+                <div class="list-row">
+                    <span>{% trans "No retirement income appears in the current horizon." %}</span>
+                    <small>-</small>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div>
+        <div class="section-heading">
+            <h2>{% trans "Assumptions" %}</h2>
+        </div>
+        <div class="empty-state">
+            <p class="muted">{% blocktrans with pension_tax=household.pension_tax_rate|floatformat:2 health=household.health_insurance_rate|floatformat:2 capital=household.capital_gains_tax_rate|floatformat:2 church=household.church_tax_rate|floatformat:2 soli=household.solidarity_surcharge_rate|floatformat:2 %}Point values, yearly point accrual, private pensions, and annual pension adjustment remain editable per plan. Tax-aware rows use household assumptions: {{ pension_tax }}% pension tax, {{ health }}% health/care insurance, {{ capital }}% capital tax, {{ church }}% church tax, and {{ soli }}% solidarity surcharge.{% endblocktrans %}</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Data Quality" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Quality" as quality_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=quality_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Data quality" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Checks for missing assumptions, stale values, and projection risks." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+        {% if feature_flags.analytics %}<a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Analytics" %}</a>{% endif %}
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="quality" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Critical" %}</span>
+        <strong class="{% if counts.critical %}negative{% endif %}">{{ counts.critical }}</strong>
+        <small><a href="?severity=critical{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{% trans "Show critical" %}</a></small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Warnings" %}</span>
+        <strong>{{ counts.warning }}</strong>
+        <small><a href="?severity=warning{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{% trans "Show warnings" %}</a></small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Info" %}</span>
+        <strong>{{ counts.info }}</strong>
+        <small><a href="?severity=info{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{% trans "Show info" %}</a></small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Projection math" %}</span>
+        <strong class="{% if not integrity.ok %}negative{% endif %}">{% if integrity.ok %}OK{% else %}{% blocktrans with count=integrity.failure_count %}{{ count }} fail{% endblocktrans %}{% endif %}</strong>
+        <small>{% blocktrans with count=integrity.checked %}{{ count }} reconciliation checks{% endblocktrans %}</small>
+    </div>
+    <a class="metric link-metric" href="{% url 'planner:assumption_review_center' %}">
+        <span>{% trans "Expired assumption reviews" %}</span>
+        <strong class="{% if assumption_registry.confidence_counts.expired %}negative{% endif %}">{{ assumption_registry.confidence_counts.expired }}</strong>
+        <small>{% trans "Reviews older than the annual review window." %}</small>
+    </a>
+    <a class="metric link-metric" href="{% url 'planner:planning_review_checklist' %}">
+        <span>{% trans "Planning review" %}</span>
+        <strong>{% trans "Checklist" %}</strong>
+        <small>{% trans "Data, assumptions, integrity, and scenarios." %}</small>
+    </a>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Completeness Checklist" %}</h2>
+            <p class="muted">{% trans "A quick trust checklist before relying on real-data forecasts." %}</p>
+        </div>
+        <span class="status-pill {% if completeness.percent == 100 %}ok{% else %}warning{% endif %}">
+            {% blocktrans with percent=completeness.percent %}{{ percent }}% complete{% endblocktrans %}
+        </span>
+    </div>
+    <div class="metrics compact">
+        <div class="metric">
+            <span>{% trans "Complete" %}</span>
+            <strong>{{ completeness.complete_count }}</strong>
+            <small>{% blocktrans with total=completeness.total_count %}of {{ total }} checks{% endblocktrans %}</small>
+        </div>
+        {% for item in completeness.items %}
+            <div class="metric">
+                <span>{{ item.label }}</span>
+                <strong class="{% if not item.complete %}negative{% endif %}">
+                    {% if item.complete %}{% trans "OK" %}{% else %}{% trans "Review" %}{% endif %}
+                </strong>
+                <small>{{ item.detail }}</small>
+                {% if item.action_url and not item.complete %}<small><a href="{{ item.action_url }}">{{ item.action_label }}</a></small>{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% if grouped_issues %}
+<section class="quality-filters">
+    <div class="section-heading">
+        <h2>{% trans "Focus" %}</h2>
+        {% if selected_category or selected_severity %}
+            <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Clear filters" %}</a>
+        {% endif %}
+    </div>
+    <div class="filter-pills">
+        {% for group in grouped_issues %}
+            <a class="status-pill {% if selected_category == group.category %}ok{% else %}info{% endif %}" href="?category={{ group.category|urlencode }}{% if selected_severity %}&severity={{ selected_severity }}{% endif %}">
+                {{ group.category }} · {{ group.count }}
+            </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Checks" %}</h2>
+        <span class="muted">{% blocktrans with filtered=filtered_total count counter=total %}{{ filtered }} of {{ counter }} issue{% plural %}{{ filtered }} of {{ counter }} issues{% endblocktrans %}</span>
+    </div>
+    <div class="issue-list">
+        {% for group in filtered_groups %}
+            <div class="issue-category">
+                <h3>{{ group.category }}</h3>
+                <span class="muted">{% blocktrans count count=group.count %}{{ count }} issue{% plural %}{{ count }} issues{% endblocktrans %}</span>
+            </div>
+            {% for item in group.issues %}
+                <div class="issue-row {{ item.severity }}">
+                    <div>
+                        <span class="status-pill {{ item.severity }}">{{ item.severity }}</span>
+                        <span class="status-pill info">{{ item.category }}</span>
+                        <h3>{{ item.title }}</h3>
+                        <p class="muted">{{ item.detail }}</p>
+                    </div>
+                    {% if item.action_url %}
+                        <a class="button secondary" href="{{ item.action_url }}">{{ item.action_label }}</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% empty %}
+            <div class="empty-state">
+                <h2>{% trans "No issues found" %}</h2>
+                <p class="muted">{% trans "The current model passed the selected data quality checks." %}</p>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

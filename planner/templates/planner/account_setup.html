@@ -1,0 +1,129 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Account Setup" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Account setup" %}</p>
+        <h1>{% trans "Add real account" %}</h1>
+        <p class="muted">{% trans "Create a cash, savings, depot, or mortgage foundation from one guided screen." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:account_create' %}">{% trans "Classic account form" %}</a>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</section>
+
+<form method="post" class="setup-form account-wizard">
+    {% csrf_token %}
+    {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Account" %}</h2>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.account_type.label_tag }}{{ form.account_type }}{{ form.account_type.errors }}<span class="helptext">{{ form.account_type.help_text }}</span></div>
+            <div>{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
+            <div>{{ form.balance.label_tag }}{{ form.balance }}{{ form.balance.errors }}</div>
+            <div>{{ form.currency.label_tag }}{{ form.currency }}{{ form.currency.errors }}</div>
+            <div>{{ form.institution.label_tag }}{{ form.institution }}{{ form.institution.errors }}</div>
+            <div>{{ form.as_of_date.label_tag }}{{ form.as_of_date }}{{ form.as_of_date.errors }}</div>
+        </div>
+        <p class="form-hint account-type-hint" data-account-hint></p>
+    </section>
+
+    <section class="setup-section" data-account-section="savings">
+        <div class="section-heading">
+            <h2>{% trans "Savings Interest" %}</h2>
+            <span class="status-pill info">{% trans "savings" %}</span>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.savings_annual_interest_rate.label_tag }}{{ form.savings_annual_interest_rate }}{{ form.savings_annual_interest_rate.errors }}</div>
+            <div>{{ form.savings_interest_cadence.label_tag }}{{ form.savings_interest_cadence }}{{ form.savings_interest_cadence.errors }}</div>
+            <div>{{ form.savings_interest_tax_rate.label_tag }}{{ form.savings_interest_tax_rate }}{{ form.savings_interest_tax_rate.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section" data-account-section="depot">
+        <div class="section-heading">
+            <h2>{% trans "Depot First Holding" %}</h2>
+            <span class="status-pill info">{% trans "depot" %}</span>
+        </div>
+        <p class="form-hint">{% trans "Optional. For distributing ETFs or stocks, create the holding here and model expected payouts separately as income rules. For target-maturity bonds, add payout date and expected payout amount." %}</p>
+        <div class="setup-grid">
+            <div>{{ form.depot_valuation.label_tag }}{{ form.depot_valuation }}{{ form.depot_valuation.errors }}</div>
+            <div>{{ form.depot_annual_return_rate.label_tag }}{{ form.depot_annual_return_rate }}{{ form.depot_annual_return_rate.errors }}</div>
+            <div>{{ form.holding_name.label_tag }}{{ form.holding_name }}{{ form.holding_name.errors }}</div>
+            <div>{{ form.holding_asset_class.label_tag }}{{ form.holding_asset_class }}{{ form.holding_asset_class.errors }}</div>
+            <div>{{ form.holding_isin.label_tag }}{{ form.holding_isin }}{{ form.holding_isin.errors }}</div>
+            <div>{{ form.holding_ticker.label_tag }}{{ form.holding_ticker }}{{ form.holding_ticker.errors }}</div>
+            <div>{{ form.holding_quantity.label_tag }}{{ form.holding_quantity }}{{ form.holding_quantity.errors }}</div>
+            <div>{{ form.holding_latest_price.label_tag }}{{ form.holding_latest_price }}{{ form.holding_latest_price.errors }}</div>
+            <div>{{ form.holding_payout_date.label_tag }}{{ form.holding_payout_date }}{{ form.holding_payout_date.errors }}</div>
+            <div>{{ form.holding_payout_amount.label_tag }}{{ form.holding_payout_amount }}{{ form.holding_payout_amount.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section" data-account-section="loan">
+        <div class="section-heading">
+            <h2>{% trans "Mortgage Or Loan" %}</h2>
+            <span class="status-pill info">{% trans "loan" %}</span>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.debt_name.label_tag }}{{ form.debt_name }}{{ form.debt_name.errors }}</div>
+            <div>{{ form.debt_annual_interest_rate.label_tag }}{{ form.debt_annual_interest_rate }}{{ form.debt_annual_interest_rate.errors }}</div>
+            <div>{{ form.debt_monthly_payment.label_tag }}{{ form.debt_monthly_payment }}{{ form.debt_monthly_payment.errors }}</div>
+            <div>{{ form.debt_start_month.label_tag }}{{ form.debt_start_month }}{{ form.debt_start_month.errors }}</div>
+            <div>{{ form.debt_end_month.label_tag }}{{ form.debt_end_month }}{{ form.debt_end_month.errors }}</div>
+            <div>{{ form.debt_fixed_interest_until.label_tag }}{{ form.debt_fixed_interest_until }}{{ form.debt_fixed_interest_until.errors }}</div>
+            <div>{{ form.debt_refinance_annual_interest_rate.label_tag }}{{ form.debt_refinance_annual_interest_rate }}{{ form.debt_refinance_annual_interest_rate.errors }}</div>
+            <div>{{ form.debt_refinance_monthly_payment.label_tag }}{{ form.debt_refinance_monthly_payment }}{{ form.debt_refinance_monthly_payment.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Notes" %}</h2>
+        </div>
+        <div class="form-grid">
+            <div>{{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}</div>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Create account" %}</button>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Cancel" %}</a>
+    </div>
+</form>
+
+<script>
+(() => {
+    const accountType = document.querySelector("#id_account_type");
+    const hint = document.querySelector("[data-account-hint]");
+    const sections = document.querySelectorAll("[data-account-section]");
+    const hints = {
+        cash: "{% trans 'Use this for Girokonto, wallet cash, or other liquid balances without separate interest modeling.' %}",
+        savings: "{% trans 'Use this for Tagesgeld, Festgeld, or other savings accounts with recurring interest payments.' %}",
+        depot: "{% trans 'Use this for broker accounts. Add one holding now, then add more holdings from the dashboard.' %}",
+        loan: "{% trans 'Use this for mortgages or loans. The wizard creates both the loan account and repayment model.' %}",
+        other: "{% trans 'Use this for assets that are not liquid cash and not part of a depot.' %}",
+    };
+
+    function syncSections() {
+        const selected = accountType.value;
+        sections.forEach((section) => {
+            section.hidden = section.dataset.accountSection !== selected;
+        });
+        hint.textContent = hints[selected] || "";
+    }
+
+    if (accountType) {
+        accountType.addEventListener("change", syncSections);
+        syncSections();
+    }
+})();
+</script>
+{% endblock %}

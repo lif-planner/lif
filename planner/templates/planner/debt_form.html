@@ -1,0 +1,122 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Debt planning" %}</p>
+        <h1>{{ title }}</h1>
+        <p class="muted">{% trans "Model the loan balance, the current fixed-interest phase, and what should happen after the fixed rate ends." %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:debt_index' %}">{% trans "Debts" %}</a>
+</section>
+
+<form method="post" class="form-panel">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+        <div class="issue-row critical">
+            <div>
+                <span class="status-pill critical">{% trans "error" %}</span>
+                <h3>{% trans "Review the form" %}</h3>
+                <p class="muted">{{ form.non_field_errors }}</p>
+            </div>
+        </div>
+    {% endif %}
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "Loan Balance" %}</h2>
+                <p class="muted">{% trans "Connect the repayment plan to a loan account and enter the principal still owed today." %}</p>
+            </div>
+        </div>
+        <div class="form-grid">
+            {% include "planner/partials/form_field.html" with field=form.account %}
+            {% include "planner/partials/form_field.html" with field=form.source_account %}
+            {% include "planner/partials/form_field.html" with field=form.name %}
+            {% include "planner/partials/form_field.html" with field=form.current_principal %}
+            {% include "planner/partials/form_field.html" with field=form.start_month %}
+            {% include "planner/partials/form_field.html" with field=form.end_month %}
+            {% include "planner/partials/form_field.html" with field=form.is_active %}
+        </div>
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "Current Terms" %}</h2>
+                <p class="muted">{% trans "These values apply until the fixed-interest period ends or until a refinance phase starts." %}</p>
+            </div>
+        </div>
+        <div class="form-grid">
+            {% include "planner/partials/form_field.html" with field=form.annual_interest_rate %}
+            {% include "planner/partials/form_field.html" with field=form.monthly_payment %}
+            {% include "planner/partials/form_field.html" with field=form.fixed_interest_until %}
+        </div>
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "After Fixed Interest" %}</h2>
+                <p class="muted">{% trans "For a full payoff when the fixed rate ends, set the next-phase rate to 0.00 and the next payment higher than the expected remaining principal. The projection caps the final payment at the balance owed." %}</p>
+            </div>
+        </div>
+        <div class="form-grid">
+            {% include "planner/partials/form_field.html" with field=form.refinance_from_month %}
+            {% include "planner/partials/form_field.html" with field=form.refinance_annual_interest_rate %}
+            {% include "planner/partials/form_field.html" with field=form.refinance_monthly_payment %}
+        </div>
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <div>
+                <h2>{% trans "Optional Extras" %}</h2>
+                <p class="muted">{% trans "Use these for interest-only periods, yearly Sondertilgung, and private notes." %}</p>
+            </div>
+        </div>
+        <div class="form-grid">
+            {% include "planner/partials/form_field.html" with field=form.interest_only_until %}
+            {% include "planner/partials/form_field.html" with field=form.annual_extra_payment %}
+            {% include "planner/partials/form_field.html" with field=form.extra_payment_month %}
+            {% include "planner/partials/form_field.html" with field=form.notes %}
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Save" %}</button>
+        <a class="button secondary" href="{% url 'planner:debt_index' %}">{% trans "Cancel" %}</a>
+    </div>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const accountSelect = document.getElementById("id_account");
+    const principalInput = document.getElementById("id_current_principal");
+    if (!accountSelect || !principalInput) {
+        return;
+    }
+
+    const applySelectedBalance = () => {
+        const option = accountSelect.selectedOptions[0];
+        const principal = option ? option.dataset.principal : "";
+        if (!principal) {
+            return;
+        }
+        if (!principalInput.value || principalInput.dataset.autofilled === "true") {
+            principalInput.value = principal;
+            principalInput.dataset.autofilled = "true";
+        }
+    };
+
+    principalInput.addEventListener("input", () => {
+        principalInput.dataset.autofilled = "false";
+    });
+    accountSelect.addEventListener("change", applySelectedBalance);
+    applySelectedBalance();
+});
+</script>
+{% endblock %}

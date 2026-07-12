@@ -1,0 +1,129 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Attention" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Data health" as section_label %}
+{% trans "Attention" as attention_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=attention_label %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Attention" %}</p>
+        <h1>{% trans "Attention rail" %}</h1>
+        <p class="muted">{% trans "Control optional nudges shown in the right rail. Hidden and snoozed items can be restored here." %}</p>
+    </div>
+</section>
+{% include "planner/_data_health_tabs.html" with active="attention" %}
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Visible" %}</span>
+        <strong>{{ active_items|length }}</strong>
+        <small>{% trans "Sorted by critical, review, optional." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Hidden or snoozed" %}</span>
+        <strong>{{ hidden_count }}</strong>
+        <small>{% trans "Can be restored below." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Critical" %}</span>
+        <strong>{{ critical_count }}</strong>
+        <small>{% trans "Critical items cannot be hidden." %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Currently Visible" %}</h2>
+        <span class="muted">{% blocktrans count count=active_items|length %}{{ count }} item{% plural %}{{ count }} items{% endblocktrans %}</span>
+    </div>
+    <div class="issue-list">
+        {% for item in active_items %}
+            <div class="issue-row {{ item.severity }}">
+                <div>
+                    <span class="status-pill {{ item.severity }}">{{ item.priority }}</span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                {% if item.dismissible %}
+                    <div class="attention-manage-actions">
+                        <form method="post" action="{% url 'planner:attention_hide' %}" class="inline-form attention-page-snooze">
+                            {% csrf_token %}
+                            <input type="hidden" name="key" value="{{ item.key }}">
+                            <select name="mode" aria-label="{% trans 'Snooze duration' %}">
+                                <option value="snooze_30">{% trans "Snooze 1 month" %}</option>
+                                <option value="snooze_90">{% trans "Snooze 3 months" %}</option>
+                                <option value="snooze_review">{% trans "Until year-end review" %}</option>
+                            </select>
+                            <button class="button secondary" type="submit">{% trans "Snooze" %}</button>
+                        </form>
+                        <form method="post" action="{% url 'planner:attention_hide' %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="key" value="{{ item.key }}">
+                            <button class="button secondary" type="submit">{% trans "Hide" %}</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="issue-row info">
+                <div>
+                    <span class="status-pill ok">{% trans "clear" %}</span>
+                    <h3>{% trans "No visible attention items" %}</h3>
+                    <p class="muted">{% trans "The right rail will show a quiet clear state." %}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "Hidden" %}</h2>
+        <span class="muted">{% blocktrans with count=hidden_count %}{{ count }} hidden{% endblocktrans %}</span>
+    </div>
+    <div class="issue-list">
+        {% for item in hidden_items %}
+            <div class="issue-row info">
+                <div>
+                    <span class="status-pill off">{% trans "hidden" %}</span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                    {% if item.hidden_until %}<small class="muted">{% blocktrans with date=item.hidden_until %}Snoozed until {{ date }}{% endblocktrans %}</small>{% endif %}
+                </div>
+                <form method="post" action="{% url 'planner:attention_restore' %}" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="key" value="{{ item.key }}">
+                    <button class="button secondary" type="submit">{% trans "Restore" %}</button>
+                </form>
+            </div>
+        {% endfor %}
+        {% for item in stale_hidden_items %}
+            <div class="issue-row info">
+                <div>
+                    <span class="status-pill off">{% trans "inactive" %}</span>
+                    <h3>{{ item.label }}</h3>
+                    <p class="muted">{{ item.detail }}</p>
+                </div>
+                <form method="post" action="{% url 'planner:attention_restore' %}" class="inline-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="key" value="{{ item.key }}">
+                    <button class="button secondary" type="submit">{% trans "Forget hidden state" %}</button>
+                </form>
+            </div>
+        {% empty %}
+            {% if not hidden_items %}
+                <div class="issue-row info">
+                    <div>
+                        <span class="status-pill ok">{% trans "none" %}</span>
+                        <h3>{% trans "No hidden attention items" %}</h3>
+                        <p class="muted">{% trans "Use Hide in the right rail to quiet optional nudges." %}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

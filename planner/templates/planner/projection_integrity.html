@@ -1,0 +1,126 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Projection Integrity" %} | LiF Planner{% endblock %}
+
+{% block content %}
+{% trans "Forecast" as section_label %}
+{% trans "Integrity" as integrity_label %}
+{% include "planner/_breadcrumb.html" with section=section_label current=integrity_label %}
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Forecast" %}</p>
+        <h1>{% trans "Projection Integrity" %}</h1>
+        <p class="muted">{% trans "Reconciliation checks that explain whether forecast buckets, account balances, and audit lines agree." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Data quality" %}</a>
+        <a class="button secondary" href="{% url 'planner:analytics' %}">{% trans "Analytics" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "Status" %}</span>
+        <strong class="{% if not integrity.ok %}negative{% endif %}">{% if integrity.ok %}{% trans "OK" %}{% else %}{% trans "Review" %}{% endif %}</strong>
+        <small>{% blocktrans with count=integrity.checked %}{{ count }} checks executed{% endblocktrans %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Failures" %}</span>
+        <strong class="{% if integrity.failure_count %}negative{% endif %}">{{ integrity.failure_count }}</strong>
+        <small>{% trans "Differences above the rounding tolerance." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Months" %}</span>
+        <strong>{% if first_month and last_month %}{{ first_month.month|date:"Y-m" }} → {{ last_month.month|date:"Y-m" }}{% else %}-{% endif %}</strong>
+        <small>{% trans "Projection horizon covered by the check." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Years" %}</span>
+        <strong>{{ year_count }}</strong>
+        <small>{% trans "Yearly rollups also reconciled." %}</small>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Bucket Bridge" %}</h2>
+            <p class="muted">{% trans "Opening and ending balances by major forecast bucket. These are the headline numbers the integrity checks reconcile." %}</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Bucket" %}</th>
+                    <th>{% trans "Opening" %}</th>
+                    <th>{% trans "Ending" %}</th>
+                    <th>{% trans "Change" %}</th>
+                    <th>{% trans "Last yearly ending" %}</th>
+                    <th>{% trans "Meaning" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in bucket_rows %}
+                    <tr>
+                        <td><strong>{{ row.label }}</strong></td>
+                        <td>{{ row.opening|money:household.currency }}</td>
+                        <td>{{ row.ending|money:household.currency }}</td>
+                        <td class="{% if row.change < 0 %}negative{% endif %}">{{ row.change|money:household.currency }}</td>
+                        <td>{{ row.year_ending|money:household.currency }}</td>
+                        <td>{{ row.detail }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">{% trans "No projection rows available." %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Reconciliation Failures" %}</h2>
+            <p class="muted">{% trans "Open the linked period to inspect the audit lines that caused the mismatch." %}</p>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Scope" %}</th>
+                    <th>{% trans "Period" %}</th>
+                    <th>{% trans "Check" %}</th>
+                    <th>{% trans "Expected" %}</th>
+                    <th>{% trans "Actual" %}</th>
+                    <th>{% trans "Difference" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for failure in integrity.failures %}
+                    <tr>
+                        <td>{{ failure.scope }}</td>
+                        <td>{{ failure.label }}</td>
+                        <td>{{ failure.check }}</td>
+                        <td>{{ failure.expected|money:household.currency }}</td>
+                        <td>{{ failure.actual|money:household.currency }}</td>
+                        <td class="{% if failure.difference < 0 %}negative{% endif %}">{{ failure.difference|money:household.currency }}</td>
+                        <td>{% if failure.url %}<a href="{{ failure.url }}">{% trans "Open period" %}</a>{% else %}-{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <strong>{% trans "All checks passed." %}</strong>
+                            <span class="muted">{% trans "The current forecast reconciles at monthly and yearly level." %}</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "planner/base.html" %}
+{% load i18n planner_extras %}
+
+{% block title %}{% trans "Income timeline" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Forecast" %}</p>
+        <h1>{% trans "Income timeline" %}</h1>
+        <p class="muted">{% trans "Every income source, year by year. Each row's sources add up to the total income LiF projects for that year." %}</p>
+    </div>
+</section>
+
+{% if not timeline.all_reconcile %}
+<section>
+    <p class="status-pill error">{% trans "Some rows do not reconcile — an income source is not categorised. Please report this." %}</p>
+</section>
+{% endif %}
+
+{% if selected_source %}
+<section class="issue-row info">
+    <div>
+        <span class="status-pill info">{% trans "filtered" %}</span>
+        <p class="muted">{% blocktrans with source=selected_source %}Showing only {{ source }}.{% endblocktrans %}</p>
+    </div>
+    <a class="button secondary" href="{% url 'planner:income_timeline' %}">{% trans "Clear filter" %}</a>
+</section>
+{% endif %}
+
+<section>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Year" %}</th>
+                    <th>{% trans "Major changes" %}</th>
+                    {% for column in timeline.columns %}
+                        {% if not selected_source or forloop.counter0 == selected_index %}<th>{{ column }}</th>{% endif %}
+                    {% endfor %}
+                    <th>{% trans "Total income" %}</th>
+                    <th>{% trans "Detail" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% now "Y" as current_year %}
+                {% for row in timeline.rows %}
+                    <tr{% if row.year|stringformat:"s" == current_year %} class="current-period"{% endif %}>
+                        <td>{{ row.label }}</td>
+                        <td>
+                            <div class="timeline-events">
+                                {% for event in row.events|slice:":3" %}
+                                    <a class="status-pill" href="{{ event.url }}" title="{{ event.detail }}">{{ event.month }} · {{ event.label }}</a>
+                                {% empty %}
+                                    <span class="muted">-</span>
+                                {% endfor %}
+                                {% if row.events|length > 3 %}
+                                    <small>{% blocktrans with count=row.events|length|add:"-3" %}+{{ count }} more{% endblocktrans %}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% for value in row.values %}
+                            {% if not selected_source or forloop.counter0 == selected_index %}<td>{{ value|money:household.currency }}</td>{% endif %}
+                        {% endfor %}
+                        <td><strong>{{ row.total|money:household.currency }}</strong></td>
+                        <td><a href="{{ row.detail_url }}">{% trans "Open" %}</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="{% if selected_source %}5{% else %}{{ timeline.columns|length|add:4 }}{% endif %}">{% trans "No projection years yet." %}</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if timeline.rows %}
+            <tfoot>
+                <tr>
+                    <th>{% trans "Total" %}</th>
+                    <td></td>
+                    {% for column_total in timeline.column_totals %}
+                        {% if not selected_source or forloop.counter0 == selected_index %}<td>{{ column_total|money:household.currency }}</td>{% endif %}
+                    {% endfor %}
+                    <td><strong>{{ timeline.grand_total|money:household.currency }}</strong></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+    <p class="muted">{% trans "Note: depot payouts (bond/ETF maturity) and private-loan principal repayments are cash inflows but not income — they appear in the projection's net cash flow, not here." %}</p>
+</section>
+{% endblock %}

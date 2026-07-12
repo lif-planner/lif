@@ -1,0 +1,83 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Household" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "Household settings" %}</p>
+        <h1>{{ household.name }}</h1>
+    </div>
+    <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Back" %}</a>
+</section>
+
+<form method="post" class="form-panel">
+    {% csrf_token %}
+    {{ form.as_div }}
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Save settings" %}</button>
+    </div>
+</form>
+
+<section>
+    <div class="section-heading">
+        <div>
+            <h2>{% trans "Households" %}</h2>
+            <p class="muted">{% trans "Choose which household the planner opens by default, and remove unused demo or test households." %}</p>
+        </div>
+    </div>
+    <div class="list">
+        {% for item in households %}
+            <div class="list-row">
+                <span>
+                    <strong>{{ item.name }}</strong><br>
+                    <small>
+                        {% blocktrans with mode=item.get_data_mode_display people=item.people.count accounts=item.accounts.count %}{{ mode }} data · {{ people }} people · {{ accounts }} accounts{% endblocktrans %}
+                        {% if item.is_active %} · {% trans "active" %}{% endif %}
+                    </small>
+                </span>
+                <span class="actions">
+                    <form method="post" action="{% url 'planner:household_clone' item.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="name" value="{% blocktrans with name=item.name %}{{ name }} strategy copy{% endblocktrans %}">
+                        <button class="button secondary" type="submit">{% trans "Clone" %}</button>
+                    </form>
+                    {% if item.is_active %}
+                        <span class="status-pill ok">{% trans "active" %}</span>
+                    {% else %}
+                        <form method="post" action="{% url 'planner:household_switch' item.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'planner:household_settings' %}">
+                            <button class="button secondary" type="submit">{% trans "Use" %}</button>
+                        </form>
+                        <form method="post" action="{% url 'planner:household_delete' item.pk %}">
+                            {% csrf_token %}
+                            <button class="button secondary danger" type="submit">{% trans "Delete" %}</button>
+                        </form>
+                    {% endif %}
+                </span>
+            </div>
+        {% empty %}
+            <p class="empty">{% trans "No households yet." %}</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <div class="section-heading">
+        <h2>{% trans "People" %}</h2>
+        <a href="{% url 'planner:person_create' %}">{% trans "Add person" %}</a>
+    </div>
+    <div class="list">
+        {% for person in people %}
+            <a class="list-row" href="{% url 'planner:person_update' person.pk %}">
+                <span>{{ person.name }}</span>
+                <small>{{ person.get_role_display }}</small>
+            </a>
+        {% empty %}
+            <p class="empty">{% trans "No people yet." %}</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

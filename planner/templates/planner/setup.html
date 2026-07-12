@@ -1,0 +1,107 @@
+{% extends "planner/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Setup" %} | LiF Planner{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <p class="eyebrow">{% trans "First-run setup" %}</p>
+        <h1>{{ household.name }}</h1>
+        <p class="muted">{% trans "Create or refresh the core planning foundation before importing account data." %}</p>
+    </div>
+    <div class="actions">
+        <a class="button secondary" href="{% url 'planner:real_data_readiness' %}">{% trans "Readiness" %}</a>
+        {% if feature_flags.imports %}<a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Imports" %}</a>{% endif %}
+        <a class="button secondary" href="{% url 'planner:account_setup' %}">{% trans "Account wizard" %}</a>
+        <a class="button secondary" href="{% url 'planner:household_settings' %}">{% trans "Manage households" %}</a>
+        <a class="button secondary" href="{% url 'planner:data_quality' %}">{% trans "Quality" %}</a>
+    </div>
+</section>
+
+<section class="metrics compact">
+    <div class="metric">
+        <span>{% trans "People" %}</span>
+        <strong>{{ setup_status.people_count }}</strong>
+        <small>{% trans "Adults, children, and dependents." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Income rules" %}</span>
+        <strong>{{ setup_status.income_rules_count }}</strong>
+        <small>{% trans "Salaries, benefits, and other recurring income." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Cash goals" %}</span>
+        <strong>{{ setup_status.cash_goals_count }}</strong>
+        <small>{% trans "Annual FIRE-style cash needs." %}</small>
+    </div>
+    <div class="metric">
+        <span>{% trans "Accounts" %}</span>
+        <strong>{{ setup_status.accounts_count }}</strong>
+        <small>{% trans "Cash, savings, depot, loans, and other assets." %}</small>
+    </div>
+</section>
+
+<form method="post" class="setup-form">
+    {% csrf_token %}
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Household" %}</h2>
+            <span class="status-pill {% if household.data_mode == 'demo' %}warning{% else %}ok{% endif %}">{% blocktrans with mode=household.get_data_mode_display %}{{ mode }} data{% endblocktrans %}</span>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.household_name.label_tag }}{{ form.household_name }}{{ form.household_name.errors }}</div>
+            <div>{{ form.currency.label_tag }}{{ form.currency }}{{ form.currency.errors }}</div>
+            <div>{{ form.start_month.label_tag }}{{ form.start_month }}{{ form.start_month.errors }}</div>
+            <div>{{ form.planning_years.label_tag }}{{ form.planning_years }}{{ form.planning_years.errors }}</div>
+            <div>{{ form.annual_cash_goal.label_tag }}{{ form.annual_cash_goal }}{{ form.annual_cash_goal.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Adults" %}</h2>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.adult_1_name.label_tag }}{{ form.adult_1_name }}{{ form.adult_1_name.errors }}</div>
+            <div>{{ form.adult_1_birth_date.label_tag }}{{ form.adult_1_birth_date }}{{ form.adult_1_birth_date.errors }}</div>
+            <div>{{ form.adult_1_monthly_salary.label_tag }}{{ form.adult_1_monthly_salary }}{{ form.adult_1_monthly_salary.errors }}</div>
+            <div>{{ form.adult_2_name.label_tag }}{{ form.adult_2_name }}{{ form.adult_2_name.errors }}</div>
+            <div>{{ form.adult_2_birth_date.label_tag }}{{ form.adult_2_birth_date }}{{ form.adult_2_birth_date.errors }}</div>
+            <div>{{ form.adult_2_monthly_salary.label_tag }}{{ form.adult_2_monthly_salary }}{{ form.adult_2_monthly_salary.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Children" %}</h2>
+        </div>
+        <div class="setup-grid">
+            <div>{{ form.child_1_name.label_tag }}{{ form.child_1_name }}{{ form.child_1_name.errors }}</div>
+            <div>{{ form.child_1_birth_date.label_tag }}{{ form.child_1_birth_date }}{{ form.child_1_birth_date.errors }}</div>
+            <div>{{ form.child_1_kindergeld.label_tag }}{{ form.child_1_kindergeld }}{{ form.child_1_kindergeld.errors }}</div>
+            <div>{{ form.child_2_name.label_tag }}{{ form.child_2_name }}{{ form.child_2_name.errors }}</div>
+            <div>{{ form.child_2_birth_date.label_tag }}{{ form.child_2_birth_date }}{{ form.child_2_birth_date.errors }}</div>
+            <div>{{ form.child_2_kindergeld.label_tag }}{{ form.child_2_kindergeld }}{{ form.child_2_kindergeld.errors }}</div>
+        </div>
+    </section>
+
+    <section class="setup-section">
+        <div class="section-heading">
+            <h2>{% trans "Next Data" %}</h2>
+        </div>
+        <div class="setup-next">
+            {% if feature_flags.imports %}<a class="button secondary" href="{% url 'planner:import_center' %}">{% trans "Import accounts and depot holdings" %}</a>{% endif %}
+            <a class="button secondary" href="{% url 'planner:account_setup' %}">{% trans "Add account with wizard" %}</a>
+            <a class="button secondary" href="{% url 'planner:household_settings' %}">{% trans "Clone or switch household" %}</a>
+            {% if feature_flags.retirement_plans %}<a class="button secondary" href="{% url 'planner:retirement_plan_create' %}">{% trans "Add retirement plan" %}</a>{% endif %}
+            {% if feature_flags.cash_goals %}<a class="button secondary" href="{% url 'planner:cash_goal_create' %}">{% trans "Add another cash goal" %}</a>{% endif %}
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button class="button" type="submit">{% trans "Save setup" %}</button>
+        <a class="button secondary" href="{% url 'planner:dashboard' %}">{% trans "Dashboard" %}</a>
+    </div>
+</form>
+{% endblock %}
