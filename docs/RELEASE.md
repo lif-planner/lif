@@ -1,4 +1,4 @@
-# Public Release Process
+# Public Release And Sync Process
 
 This document describes how to publish LiF from the private working repository
 to a clean public repository without exposing the private commit history.
@@ -110,9 +110,112 @@ Keep the private repository private. Future development can move to the new
 public repository once you are comfortable, or this private repository can stay
 as a workbench/archive.
 
+## Ongoing Private-To-Public Updates
+
+After `v1.0.0`, the recommended workflow is:
+
+1. Keep normal development on private `main`.
+2. Commit and push private work to `origin/main`.
+3. Move only public-safe commits onto the clean `public-release` branch.
+4. Push `public-release` to the public repository as `main`.
+
+The private repository remains the workbench. The public repository receives
+only reviewed code, docs, examples, and synthetic demo data.
+
+### Daily Private Work
+
+On private `main`:
+
+```bash
+git switch main
+git pull
+# make code/docs changes
+python3 scripts/scan_secrets.py
+python3 scripts/scan_public_readiness.py
+pipenv run python manage.py test
+pipenv run python manage.py check
+git add <changed-files>
+git commit -m "Describe the private change"
+git push origin main
+```
+
+Do not commit real data, local SQLite databases, private seed files, Ansible
+vault files, `.env` files, backups, logs, collected static files, or anything
+from `local_private/`.
+
+### Promote A Public-Safe Commit
+
+If a private commit is safe for public history, cherry-pick it onto
+`public-release`:
+
+```bash
+git switch public-release
+git pull public main
+git cherry-pick <private-commit-sha>
+python3 scripts/scan_secrets.py
+python3 scripts/scan_public_readiness.py
+pipenv run python manage.py test
+pipenv run python manage.py check
+git push public public-release:main
+git switch main
+```
+
+Use this path for normal code, migrations, tests, documentation, examples, and
+synthetic seed data.
+
+For small public-only documentation fixes, it is also fine to commit directly on
+`public-release` and push to `public`. If the same change should exist in the
+private workbench too, cherry-pick it back to private `main`.
+
+### Promote Several Commits
+
+Prefer small, reviewable commits. If several adjacent private commits are all
+public-safe, cherry-pick them in order:
+
+```bash
+git switch public-release
+git pull public main
+git cherry-pick <oldest-safe-sha>
+git cherry-pick <next-safe-sha>
+git cherry-pick <newest-safe-sha>
+python3 scripts/scan_secrets.py
+python3 scripts/scan_public_readiness.py
+pipenv run python manage.py test
+pipenv run python manage.py check
+git push public public-release:main
+git switch main
+```
+
+If a private commit mixes public code with private notes or local configuration,
+do not cherry-pick it directly. Create a clean public commit manually on
+`public-release` with only the safe files.
+
+### Tags And Releases After 1.0
+
+For future public releases:
+
+1. Update `CHANGELOG.md`.
+2. Bump `lif/version.py`.
+3. Promote the release commit to `public-release`.
+4. Create a public tag on `public-release`.
+5. Push the branch and tag to the public repo.
+
+Example:
+
+```bash
+git switch public-release
+git tag v1.1.0
+git push public public-release:main
+git push public v1.1.0
+```
+
+Then create the GitHub Release from that tag.
+
 ## Do Not Do This
 
 - Do not make the current private repository public.
 - Do not push private `main` to the public repository.
 - Do not use `git push --mirror`.
 - Do not run public pull-request workflows on a self-hosted runner.
+- Do not cherry-pick commits that include real household data, local deployment
+  secrets, private hostnames, private IPs, or internal-only notes.

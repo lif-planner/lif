@@ -52,8 +52,8 @@ server behind VPN/LAN access.
   reporting guidance.
 - [CHANGELOG.md](CHANGELOG.md) -- public release notes and version history.
 - [NOTICE.md](NOTICE.md) -- notable bundled third-party notices.
-- [docs/RELEASE.md](docs/RELEASE.md) -- maintainer checklist for creating the
-  clean public `v1.0.0` release repository.
+- [docs/RELEASE.md](docs/RELEASE.md) -- maintainer process for public releases
+  and private-to-public code sync.
 
 The rest of this README covers local development setup and the technical
 configuration reference. For day-to-day usage, start with the user guide.
