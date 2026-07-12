@@ -10,6 +10,32 @@ pensions, savings, taxes on capital income, and long-term cash-flow decisions.
 The app is meant to run on your own computer, NAS, Proxmox LXC, or private
 server behind VPN/LAN access.
 
+## Disclaimer
+
+LiF is a hobby project, built and maintained in spare time. We do our best to
+get the numbers right, but the software may contain bugs, edge cases, or
+missing calculations, and is provided without warranty of any kind. Use it at
+your own risk.
+
+Nothing in this repository or the app is financial or tax advice. LiF is a
+planning aid, not a substitute for professional judgment -- if you're unsure
+about a decision, consult a qualified financial or tax advisor.
+
+<details>
+<summary><strong>Haftungsausschluss (Deutsch)</strong></summary>
+
+LiF ist ein Hobbyprojekt, das in der Freizeit entwickelt und gepflegt wird.
+Wir geben unser Bestes, damit die Berechnungen stimmen -- trotzdem kann die
+Software Fehler, Sonderfälle oder fehlende Berechnungen enthalten und wird
+ohne jegliche Gewährleistung bereitgestellt. Die Nutzung erfolgt auf eigenes
+Risiko.
+
+Nichts in diesem Repository oder in der App ist eine Finanz- oder
+Steuerberatung. LiF ist eine Planungshilfe, kein Ersatz für professionelle
+Beratung. Wende Dich im Zweifel an eine Finanz- oder Steuerberatung.
+
+</details>
+
 ## Why LiF?
 
 - **Local-first by design:** no telemetry, no hosted sync, and no third-party
