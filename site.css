@@ -84,6 +84,13 @@ nav {
   font-weight: 700;
 }
 
+.language-link {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
 main {
   overflow: hidden;
 }
