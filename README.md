@@ -58,6 +58,14 @@ server behind VPN/LAN access.
 The rest of this README covers local development setup and the technical
 configuration reference. For day-to-day usage, start with the user guide.
 
+## AI-Assisted Development
+
+LiF was built largely with AI-assisted coding, guided by human product
+direction, testing, and release decisions. That is part of the project history
+and also a reason the codebase treats financial calculations with extra care:
+projection behavior should be covered by tests, reviewed through audit output,
+and treated as planning support rather than financial advice.
+
 ## License
 
 LiF is released under the MIT license. The goal is to make local self-hosting,

@@ -43,6 +43,14 @@ pipenv run python manage.py check_production
 
 See `ENGINEERING_GUARDRAILS.md` for the fuller set of project conventions.
 
+## AI-Assisted Contributions
+
+AI-assisted code and documentation are welcome, but the contributor remains
+responsible for the result. Before opening a pull request, read the generated
+changes, run the relevant tests and scans, and call out any financial behavior
+that needs extra review. For projection logic, prefer small changes with clear
+regression tests and audit output.
+
 ## Pull Request Shape
 
 Prefer one logical change per pull request. A good PR includes:
