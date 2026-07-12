@@ -63,6 +63,31 @@ configuration reference. For day-to-day usage, start with the user guide.
 LiF is released under the MIT license. The goal is to make local self-hosting,
 forks, contributions, and private adaptations simple.
 
+## Prerequisites
+
+For the local demo and development setup, install:
+
+- Python 3.12 or newer.
+- Pipenv for managing the Python virtual environment.
+- Git for cloning and updating the repository.
+
+On macOS with Homebrew:
+
+```bash
+brew install python pipenv git
+```
+
+On Debian/Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip git
+python3 -m pip install --user pipenv
+```
+
+If `pipenv` is installed with `pip --user`, make sure your user-level Python
+bin directory is on `PATH` before running the commands below.
+
 ## Quick Demo
 
 Install dependencies, migrate, load synthetic demo data, and run the app:
