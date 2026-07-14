@@ -77,3 +77,4 @@ Useful starting points:
 - `docs/USER_GUIDE.md` for app concepts
 - `docs/ADMIN_GUIDE.md` for operations and self-hosting
 - `docs/I18N.md` for translation workflow
+- `docs/HOME_ASSISTANT_ADDON.md` for the experimental Home Assistant add-on plan

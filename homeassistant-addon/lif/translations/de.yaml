@@ -1,0 +1,12 @@
+configuration:
+  demo_mode:
+    name: Demo-Modus
+    description: Synthetische Demodaten beim ersten Start anlegen.
+  login_required:
+    name: Anmeldung erforderlich
+    description: LiF-Anmeldung zusaetzlich zum Home-Assistant-Zugriff verlangen.
+  allowed_hosts:
+    name: Erlaubte Hosts
+    description: Hostnamen, die Django fuer LiF akzeptiert.
+network:
+  8000/tcp: Optionale direkte LiF-Weboberflaeche

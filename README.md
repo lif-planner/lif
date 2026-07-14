@@ -72,6 +72,8 @@ Beratung. Wende Dich im Zweifel an eine Finanz- oder Steuerberatung.
   getting started, and a feature-by-feature walkthrough.
 - [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) -- self-hosting LiF: choosing a
   deployment method, configuration, backups, and updates.
+- [docs/HOME_ASSISTANT_ADDON.md](docs/HOME_ASSISTANT_ADDON.md) --
+  experimental Home Assistant add-on packaging plan.
 - [CONTRIBUTING.md](CONTRIBUTING.md) -- local setup, test expectations, and
   contribution guardrails.
 - [SECURITY.md](SECURITY.md) -- local-first threat model and vulnerability

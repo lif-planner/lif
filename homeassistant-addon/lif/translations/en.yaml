@@ -1,0 +1,12 @@
+configuration:
+  demo_mode:
+    name: Demo mode
+    description: Seed synthetic demo data on first start.
+  login_required:
+    name: Login required
+    description: Require LiF login in addition to Home Assistant access.
+  allowed_hosts:
+    name: Allowed hosts
+    description: Hostnames accepted by Django when serving LiF.
+network:
+  8000/tcp: Optional direct LiF web interface

@@ -16,8 +16,9 @@ Treat the SQLite database as your production data store.
 | Docker Compose / container | Proxmox LXC or any Linux host | [CONTAINER_DEPLOYMENT.md](CONTAINER_DEPLOYMENT.md) |
 | Ansible-automated deploy | Repeatable, hands-off setup and updates | [ANSIBLE_DEPLOYMENT.md](ANSIBLE_DEPLOYMENT.md) |
 | Always-on Mac mini (manual) | A dedicated Mac with LaunchAgent + auto-deploy on push | [MAC_MINI_DEPLOYMENT.md](MAC_MINI_DEPLOYMENT.md) |
+| Home Assistant add-on | Home Assistant OS/Supervisor, experimental | [HOME_ASSISTANT_ADDON.md](HOME_ASSISTANT_ADDON.md) |
 
-All four run the same Django app against SQLite; they differ in how the
+All methods run the same Django app against SQLite; they differ in how the
 process is supervised and how updates get applied. Pick one and follow its
 doc for the full step-by-step -- the sections below cover what's common to
 all of them.
