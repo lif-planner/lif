@@ -10,7 +10,11 @@ cleanup() {
         docker rm -f "$CONTAINER_ID" >/dev/null 2>&1 || true
     fi
     if [ -n "${DATA_DIR_CREATED:-}" ] && [ -d "$DATA_DIR_CREATED" ]; then
-        rm -rf "$DATA_DIR_CREATED"
+        docker run --rm --entrypoint sh \
+            -v "${DATA_DIR_CREATED}:/data" \
+            "$IMAGE" \
+            -c "chmod -R a+rwX /data" >/dev/null 2>&1 || true
+        rm -rf "$DATA_DIR_CREATED" || true
     fi
 }
 trap cleanup EXIT INT TERM
