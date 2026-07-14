@@ -29,6 +29,7 @@ from django.utils import timezone
 from .assumptions import ASSUMPTION_REVIEW_EXPIRY_DAYS
 from .feature_flags import FEATURE_FLAG_DEFINITIONS, feature_enabled, feature_flag_map, feature_required
 from .management.commands.seed_demo import FIRE_HOUSEHOLD_NAME, HOUSEHOLD_NAME
+from lif.version import app_version
 from .liquidity import build_liquidity_view, build_yearly_liquidity_view
 from .models import (
     AssetAccount,
@@ -2873,7 +2874,7 @@ class ProjectionTests(TestCase):
         self.assertIn("feature_flags", response.context)
         self.assertIn("snapshots", response.context["feature_flags"])
         self.assertContains(response, "Feature Flags")
-        self.assertContains(response, "LiF 1.0.0")
+        self.assertContains(response, f"LiF {app_version()}")
         self.assertContains(response, "planner/app.js")
         self.assertContains(response, "Needs attention")
 
@@ -3874,7 +3875,7 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "System")
-        self.assertContains(response, "LiF 1.0.0")
+        self.assertContains(response, f"LiF {app_version()}")
         self.assertContains(response, "Database")
         self.assertContains(response, "Feature Flags")
         self.assertContains(response, "read_only_mode")

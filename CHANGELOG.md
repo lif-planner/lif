@@ -8,6 +8,24 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.0] - 2026-07-14
+
+### Added
+
+- Experimental Home Assistant add-on packaging staged in the main repository
+  and published as a dedicated add-on repository.
+- GHCR container image workflow with smoke testing and multi-architecture
+  `amd64`/`arm64` publishing.
+- App-version GHCR tags so Home Assistant add-on versions can resolve to
+  matching LiF container image tags.
+- Home Assistant add-on validation, release notes, ingress checklist, and
+  icon/logo assets.
+
+### Fixed
+
+- Container smoke-test cleanup now tolerates root-owned files created inside
+  temporary Docker `/data` mounts.
+
 ## [1.0.0] - 2026-07-12
 
 ### Added
