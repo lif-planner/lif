@@ -26,15 +26,18 @@ that file becomes the root-level Home Assistant repository descriptor.
 ## Iteration Plan
 
 1. Add the add-on skeleton in `homeassistant-addon/lif/`.
-2. Test local add-on builds on Home Assistant OS or a supervised install.
-3. Verify ingress behavior for static files, charts, redirects, CSRF, and login.
-4. Publish a multi-arch GHCR image for LiF and update the add-on to consume it.
+2. Publish a multi-arch GHCR image for LiF and update the add-on to consume it.
+3. Test local add-on installs on Home Assistant OS or a supervised install.
+4. Verify ingress behavior for static files, charts, redirects, CSRF, and login.
 5. Split the packaging into a dedicated Home Assistant add-on repository.
 6. Add screenshots and install docs for Home Assistant users.
 
 ## Current Limitations
 
-- The experimental add-on Dockerfile builds LiF from the public Git repository.
+- The add-on metadata points at `ghcr.io/lif-planner/lif`, published by GitHub
+  Actions from public `main` and version tags.
+- The experimental add-on Dockerfile still exists as a source-build fallback
+  while the dedicated add-on repository is not split out.
 - The add-on is marked `experimental`.
 - Ingress behavior has not yet been verified on a real Home Assistant instance.
 - Dedicated add-on repository publishing is not implemented yet.
@@ -46,6 +49,10 @@ that file becomes the root-level Home Assistant repository descriptor.
 
 Home Assistant add-ons are built from the add-on directory as their Docker
 context. That means a Dockerfile inside `homeassistant-addon/lif/` cannot simply
-`COPY` the parent LiF source tree. For now, the Dockerfile clones the public
-repository during image build. Long term, publishing `ghcr.io/lif-planner/lif`
-and pointing the add-on at that image will be cleaner.
+`COPY` the parent LiF source tree. The preferred path is the published
+`ghcr.io/lif-planner/lif` image; the source-build Dockerfile is only a fallback
+for early packaging experiments.
+
+The container image workflow builds the regular LiF Docker image, runs
+`scripts/smoke_container.sh` against `/health/`, and publishes multi-arch images
+on pushes to public `main` and version tags.

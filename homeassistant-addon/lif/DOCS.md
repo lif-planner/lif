@@ -41,8 +41,8 @@ direct port is disabled by default.
 
 ## Known Gaps
 
-- The image currently builds LiF from the public Git repository during the
-  add-on image build.
+- The add-on points at `ghcr.io/lif-planner/lif`; the local Dockerfile remains
+  as an early source-build fallback.
 - A dedicated `lif-planner/home-assistant-addon` repository should follow once
   the packaging is tested.
 - Ingress URL handling still needs end-to-end testing with charts, login, and

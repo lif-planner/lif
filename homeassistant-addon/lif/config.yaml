@@ -3,6 +3,7 @@ version: "1.0.0"
 slug: "lif_planner"
 description: "Local-first financial life planning for German households."
 url: "https://github.com/lif-planner/lif"
+image: "ghcr.io/lif-planner/lif"
 arch:
   - amd64
   - aarch64
