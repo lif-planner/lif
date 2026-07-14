@@ -9174,7 +9174,20 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertNotEqual(response.status_code, 403)
+        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
         self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "de")
+
+    def test_language_switch_under_home_assistant_ingress_rejects_ha_ui_redirects(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            "/api/hassio_ingress/test-token/i18n/setlang/",
+            {"language": "de", "next": "/dashboard-lif/sidebar"},
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
 
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:

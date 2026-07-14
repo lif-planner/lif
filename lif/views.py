@@ -2,7 +2,9 @@ from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.http import JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import check_for_language
 
 from .version import version_context
 
@@ -38,3 +40,53 @@ def health(request):
         **version_context(),
     }
     return JsonResponse(payload, status=200 if healthy else 503)
+
+
+def set_language_local(request):
+    language = request.POST.get("language", "")
+    target = _safe_language_redirect_target(request)
+    response = HttpResponseRedirect(target)
+
+    if check_for_language(language):
+        response.set_cookie(
+            settings.LANGUAGE_COOKIE_NAME,
+            language,
+            max_age=settings.LANGUAGE_COOKIE_AGE,
+            path=settings.LANGUAGE_COOKIE_PATH,
+            domain=settings.LANGUAGE_COOKIE_DOMAIN,
+            secure=settings.LANGUAGE_COOKIE_SECURE,
+            httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
+            samesite=settings.LANGUAGE_COOKIE_SAMESITE,
+        )
+        if hasattr(request, "session"):
+            request.session[settings.LANGUAGE_COOKIE_NAME] = language
+
+    return response
+
+
+def _safe_language_redirect_target(request):
+    fallback = _with_script_name(request, "/")
+    target = request.POST.get("next") or request.GET.get("next") or fallback
+    allowed = url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    )
+    if not allowed:
+        return fallback
+
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if script_name and not target.startswith(f"{script_name}/") and target != script_name:
+        return fallback
+    return target
+
+
+def _with_script_name(request, path):
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if not script_name:
+        return path if path.startswith("/") else f"/{path}"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path == script_name or path.startswith(f"{script_name}/"):
+        return path
+    return f"{script_name}{path}"

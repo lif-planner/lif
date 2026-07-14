@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.5
+
+- Fix language selection under Home Assistant Ingress so it redirects back to
+  LiF instead of loading Home Assistant UI content inside the panel.
+
 ## 1.1.4
 
 - Fix demo seeding on Home Assistant when a stale `/data/.demo_seeded` marker

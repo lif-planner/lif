@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.5] - 2026-07-14
+
+### Fixed
+
+- Language selection under Home Assistant Ingress now redirects back to the LiF
+  ingress path instead of loading Home Assistant UI content inside the LiF
+  panel.
+
 ## [1.1.4] - 2026-07-14
 
 ### Fixed
