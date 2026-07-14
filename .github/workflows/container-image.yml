@@ -35,6 +35,21 @@ jobs:
       - name: Smoke test container
         run: scripts/smoke_container.sh lif-smoke:${{ github.sha }}
 
+      - name: Read LiF version
+        if: github.event_name == 'push'
+        id: lif_version
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import re
+          from pathlib import Path
+
+          text = Path("lif/version.py").read_text()
+          match = re.search(r'os\.environ\.get\("LIF_VERSION",\s*"([^"]+)"\)', text)
+          if not match:
+              raise SystemExit("Could not find default LIF_VERSION in lif/version.py")
+          print(f"version={match.group(1)}")
+          PY
+
       - name: Log in to GHCR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -51,6 +66,7 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=${{ steps.lif_version.outputs.version }},enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=sha,prefix=sha-
 
