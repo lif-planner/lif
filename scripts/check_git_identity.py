@@ -143,9 +143,40 @@ def check_public_range(base: str, head: str, label: str) -> None:
         )
 
 
+def tag_tagger(sha: str) -> Identity | None:
+    """Return the tagger identity for an annotated tag object, else None."""
+    if run_git(["cat-file", "-t", sha]) != "tag":
+        return None
+    for line in run_git(["cat-file", "-p", sha]).splitlines():
+        if line.startswith("tagger "):
+            return parse_ident(line[len("tagger "):])
+    return None
+
+
 def check_public_tag(head: str, label: str) -> None:
     if head == ZERO_SHA:
         return
+
+    # Annotated tags carry their own tagger identity, separate from the
+    # target commit's author/committer -- and it leaks just as publicly.
+    tagger = tag_tagger(head)
+    if tagger is not None and not expected(tagger):
+        fail(
+            "\n".join(
+                [
+                    "Refusing to push public annotated tag with unexpected tagger identity.",
+                    f"Expected tagger to be: {format_expected()}",
+                    "",
+                    f"- {head[:12]} in {label}",
+                    f"  tagger: {tagger.name} <{tagger.email}>",
+                    "",
+                    "Recreate the tag with the public identity, for example:",
+                    f"  GIT_COMMITTER_NAME={EXPECTED_NAME!r} \\",
+                    f"  GIT_COMMITTER_EMAIL={EXPECTED_EMAIL!r} \\",
+                    "  git tag -f -a <tag> -m '<message>' <target>",
+                ]
+            )
+        )
 
     commit = run_git(["rev-parse", f"{head}^{{commit}}"])
     author, committer = commit_metadata(commit)

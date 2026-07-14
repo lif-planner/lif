@@ -231,24 +231,59 @@ do not cherry-pick it directly. Create a clean public commit manually on
 
 ### Tags And Releases After 1.0
 
-For future public releases:
+A release is not done until every step below has happened. Skipping the
+add-on repo sync (step 6) or the tags (step 5) has bitten before: the code
+and image were live while Home Assistant still offered the old version and
+the release was unfindable on GitHub.
 
-1. Update `CHANGELOG.md`.
-2. Bump `lif/version.py`.
+1. Update `CHANGELOG.md` and `homeassistant-addon/lif/CHANGELOG.md`.
+2. Bump `lif/version.py` **and** `homeassistant-addon/lif/config.yaml` to the
+   same version. The container-image workflow tags the GHCR image with the
+   `lif/version.py` value, and Home Assistant pulls `image:version` from
+   `config.yaml` -- if they diverge, the add-on points at a tag that does not
+   exist.
 3. Promote the release commit to `public-release`.
-4. Create a public tag on `public-release`.
-5. Push the branch and tag to the public repo.
+4. Push the branch to the public repo and wait for the "Container Image"
+   workflow to succeed (it publishes `ghcr.io/lif-planner/lif:<version>`).
+5. Tag **both** repos with the maintainer identity. Annotated tags carry
+   their own tagger name/email, which is public -- never tag with a personal
+   identity (`scripts/check_git_identity.py` rejects it on push).
+6. Sync the add-on repository. Home Assistant reads add-on versions from
+   `lif-planner/home-assistant-addon`, not from this repo -- without this
+   step, no HA instance ever sees the update.
+7. Verify.
 
 Example:
 
 ```bash
+# steps 3-4
 git switch public-release
-git tag v1.1.0
+git cherry-pick <release-sha>
 git push public public-release:main
+gh run watch --repo lif-planner/lif   # Container Image workflow
+
+# step 5 (maintainer tagger identity)
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+git tag -a v1.1.0 -m "LiF 1.1.0"
 git push public v1.1.0
+
+# step 6 (from the home-assistant-addon checkout next to this repo)
+cd ../home-assistant-addon
+sh scripts/sync_from_lif.sh ../LiF
+sh scripts/validate.sh
+git add -A && git commit -m "Release LiF Planner add-on v1.1.0"
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+git tag -a v1.1.0 -m "LiF Planner add-on 1.1.0"
+git push origin main v1.1.0
+
+# step 7
+gh api repos/lif-planner/lif/tags --jq '.[0].name'
+curl -s "https://raw.githubusercontent.com/lif-planner/home-assistant-addon/main/lif/config.yaml" | grep version
 ```
 
-Then create the GitHub Release from that tag.
+Then create the GitHub Release from the tag when the release warrants notes.
 
 ## Do Not Do This
 
