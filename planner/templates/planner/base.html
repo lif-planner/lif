@@ -1,4 +1,4 @@
-{% load i18n static %}
+{% load i18n planner_extras %}
 {% get_current_language as CURRENT_LANGUAGE %}
 <!doctype html>
 <html lang="{{ CURRENT_LANGUAGE|default:'en' }}">
@@ -6,9 +6,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}LiF Planner{% endblock %}</title>
-    <link rel="icon" type="image/svg+xml" href="{% static 'planner/favicon.svg' %}">
-    <link rel="stylesheet" href="{% static 'planner/app.css' %}?v=40">
-    <script src="{% static 'planner/app.js' %}?v=8" defer></script>
+    <link rel="icon" type="image/svg+xml" href="{% ingress_static 'planner/favicon.svg' %}">
+    <link rel="stylesheet" href="{% ingress_static 'planner/app.css' %}?v=40">
+    <script src="{% ingress_static 'planner/app.js' %}?v=8" defer></script>
 </head>
 <body>
     <div class="app-shell">

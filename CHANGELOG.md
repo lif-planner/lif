@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.3] - 2026-07-14
+
+### Fixed
+
+- Home Assistant Ingress pages now generate static asset URLs with the ingress
+  prefix, fixing missing CSS and JavaScript when the add-on is opened through
+  Home Assistant.
+
 ## [1.1.2] - 2026-07-14
 
 ### Fixed

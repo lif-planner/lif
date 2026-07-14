@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+- Fix missing CSS and JavaScript under Home Assistant Ingress by generating
+  static asset URLs with the ingress prefix.
+
 ## 1.1.2
 
 - Fix Home Assistant Ingress path handling so the add-on no longer shows

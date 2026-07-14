@@ -1,5 +1,5 @@
 {% extends "planner/base.html" %}
-{% load i18n static planner_extras %}
+{% load i18n planner_extras %}
 
 {% block title %}{% trans "Scenario Compare" %} | LiF Planner{% endblock %}
 
@@ -427,7 +427,7 @@
     </div>
 </section>
 
-<script src="{% static 'vendor/echarts.min.js' %}"></script>
+<script src="{% ingress_static 'vendor/echarts.min.js' %}"></script>
 <script>
 (function () {
     const data = JSON.parse(document.getElementById("scenario-chart-data").textContent);

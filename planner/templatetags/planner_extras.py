@@ -1,4 +1,5 @@
 from django import template
+from django.contrib.staticfiles.storage import staticfiles_storage
 
 from planner.finance import real_value
 from planner.privacy import masked_money, privacy_mode_enabled
@@ -51,3 +52,17 @@ def display_money(value, annual_rate, months_from_start, currency="EUR", display
     if display_mode == "real":
         value = real_value(value, annual_rate, months_from_start)
     return money(value, currency)
+
+
+@register.simple_tag(takes_context=True)
+def ingress_static(context, path):
+    url = staticfiles_storage.url(path)
+    request = context.get("request")
+    script_name = ""
+    if request is not None:
+        script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if not script_name:
+        return url
+    if url.startswith(("http://", "https://", "//")):
+        return url
+    return f"{script_name}/{url.lstrip('/')}"

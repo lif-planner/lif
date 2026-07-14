@@ -9140,6 +9140,27 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '/api/hassio_ingress/test-token/analytics/')
+        self.assertContains(response, '/api/hassio_ingress/test-token/static/planner/app.css')
+        self.assertContains(response, '/api/hassio_ingress/test-token/static/planner/app.js')
+
+    def test_home_assistant_ingress_prefix_is_stripped_before_static_serving(self):
+        from lif.middleware import HomeAssistantIngressMiddleware
+
+        seen = {}
+
+        def get_response(request):
+            seen["path_info"] = request.path_info
+            return HttpResponse("ok")
+
+        middleware = HomeAssistantIngressMiddleware(get_response)
+        request = RequestFactory().get(
+            "/api/hassio_ingress/test-token/static/planner/app.css",
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+        response = middleware(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(seen["path_info"], "/static/planner/app.css")
 
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:
