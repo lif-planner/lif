@@ -1,6 +1,11 @@
+import re
+
 from django.conf import settings
 from django.urls import get_script_prefix, set_script_prefix
 from django.utils.translation import check_for_language
+
+
+INGRESS_PATH_RE = re.compile(r"^(/api/hassio_ingress/[^/]+)(?:/|$)")
 
 
 class HomeAssistantIngressMiddleware:
@@ -31,6 +36,9 @@ class HomeAssistantIngressMiddleware:
     @staticmethod
     def _normalized_ingress_path(request):
         ingress_path = request.headers.get("X-Ingress-Path", "").strip()
+        if not ingress_path:
+            match = INGRESS_PATH_RE.match(request.META.get("PATH_INFO", ""))
+            ingress_path = match.group(1) if match else ""
         if not ingress_path:
             return ""
         if not ingress_path.startswith("/"):

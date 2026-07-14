@@ -1,5 +1,5 @@
 name: "LiF Planner"
-version: "1.1.7"
+version: "1.1.8"
 slug: "lif_planner"
 description: "Local-first financial life planning for German households."
 url: "https://github.com/lif-planner/lif"

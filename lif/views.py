@@ -46,7 +46,7 @@ def health(request):
 def set_language_local(request):
     language = request.POST.get("language", "")
     target = _safe_language_redirect_target(request)
-    if check_for_language(language) and request.META.get("SCRIPT_NAME"):
+    if check_for_language(language) and _is_ingress_target(request, target):
         target = _with_language_query(target, language)
     response = HttpResponseRedirect(target)
 
@@ -95,6 +95,13 @@ def _with_language_query(target, language):
     query = dict(parse_qsl(parts.query, keep_blank_values=True))
     query[settings.LIF_LANGUAGE_QUERY_PARAM] = language
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _is_ingress_target(request, target):
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if script_name:
+        return True
+    return urlsplit(target).path.startswith("/api/hassio_ingress/")
 
 
 def _with_script_name(request, path):

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.8
+
+- Fix Home Assistant Ingress language and privacy controls when the ingress
+  prefix must be inferred from the request path.
+
 ## 1.1.7
 
 - Keep the selected language active inside Home Assistant Ingress even when

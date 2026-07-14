@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.8] - 2026-07-14
+
+### Fixed
+
+- Home Assistant Ingress path handling now also works when Supervisor does not
+  forward `X-Ingress-Path`, fixing language and privacy controls behind
+  Cloudflare/Safari request shapes.
+
 ## [1.1.7] - 2026-07-14
 
 ### Fixed
