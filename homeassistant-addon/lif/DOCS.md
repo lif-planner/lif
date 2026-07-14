@@ -4,8 +4,8 @@ This add-on runs LiF as a Home Assistant Supervisor-managed container.
 
 ## Current Status
 
-The add-on packaging is experimental. It is intended as the first packaging
-slice before publishing a dedicated Home Assistant add-on repository.
+The add-on packaging is experimental. Start with demo data and verify ingress
+behavior before entering real household data.
 
 ## Data Location
 
@@ -41,9 +41,7 @@ direct port is disabled by default.
 
 ## Known Gaps
 
-- The add-on points at `ghcr.io/lif-planner/lif`; the local Dockerfile remains
-  as an early source-build fallback.
-- A dedicated `lif-planner/home-assistant-addon` repository should follow once
-  the packaging is tested.
+- The add-on points at `ghcr.io/lif-planner/lif`; Home Assistant uses the
+  add-on version as the image tag.
 - Ingress URL handling still needs end-to-end testing with charts, login, and
   static files.

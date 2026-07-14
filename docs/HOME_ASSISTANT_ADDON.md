@@ -47,6 +47,10 @@ The export script copies `homeassistant-addon/` into a clean standalone Git
 repository, creates an initial commit with the public maintainer identity, and
 sets `git@github.com:lif-planner/home-assistant-addon.git` as `origin`.
 
+The staged add-on repository includes its own CI, validation scripts, release
+notes, ingress test checklist, and Home Assistant icon/logo assets. Keep those
+files synchronized when changing the add-on packaging in the main LiF repo.
+
 ## Current Limitations
 
 - The add-on metadata points at `ghcr.io/lif-planner/lif`, published by GitHub
