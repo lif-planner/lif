@@ -26,6 +26,8 @@ class HomeAssistantIngressMiddleware:
 
         original_prefix = get_script_prefix()
         request.META["SCRIPT_NAME"] = ingress_path
+        if self._should_bypass_csrf(request):
+            request._dont_enforce_csrf_checks = True
         self._strip_ingress_path(request, ingress_path)
         set_script_prefix(f"{ingress_path}/")
         try:
@@ -58,6 +60,14 @@ class HomeAssistantIngressMiddleware:
         request.META["PATH_INFO"] = stripped
         request.path_info = stripped
         request.path = f"{ingress_path}{stripped}"
+
+    @staticmethod
+    def _should_bypass_csrf(request):
+        if not settings.LIF_HOME_ASSISTANT_ADDON:
+            return False
+        if request.headers.get("X-Ingress-Path", "").strip():
+            return True
+        return request.META.get("HTTP_SEC_FETCH_DEST") == "iframe"
 
 
 class PersistentLanguageMiddleware:

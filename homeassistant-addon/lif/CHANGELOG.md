@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.11
+
+- Fix remaining Home Assistant Ingress POST controls, including household
+  switching, by applying the CSRF exception centrally for add-on iframe
+  requests.
+
 ## 1.1.10
 
 - Fix the published add-on running without its add-on environment: the pulled

@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.11] - 2026-07-14
+
+### Fixed
+
+- Home Assistant Ingress POST forms now bypass Django's CSRF check centrally
+  when running inside the add-on iframe, fixing household switching and other
+  POST controls that were still failing with `Origin: null`.
+
 ## [1.1.10] - 2026-07-14
 
 ### Fixed

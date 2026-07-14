@@ -23,10 +23,12 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-local-dev-only
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
+LIF_HOME_ASSISTANT_ADDON = os.environ.get("LIF_HOME_ASSISTANT_ADDON", "").strip().lower() in {"1", "true", "yes", "on"}
+
 LIF_REQUIRE_LOGIN = os.environ.get("LIF_REQUIRE_LOGIN", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 def _default_allowed_hosts():
-    if os.environ.get("LIF_HOME_ASSISTANT_ADDON", "").strip().lower() in {"1", "true", "yes", "on"}:
+    if LIF_HOME_ASSISTANT_ADDON:
         return "*"
     if os.environ.get("SUPERVISOR_TOKEN"):
         return "*"

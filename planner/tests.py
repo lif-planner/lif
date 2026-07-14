@@ -9202,6 +9202,67 @@ class ProjectionTests(TestCase):
         self.assertEqual(seen["script_name"], "/api/hassio_ingress/test-token")
         self.assertEqual(seen["path_info"], "/static/planner/app.css")
 
+    @override_settings(LIF_HOME_ASSISTANT_ADDON=True)
+    def test_home_assistant_ingress_bypasses_csrf_for_post_forms(self):
+        demo = Household.objects.create(
+            name="Demo",
+            data_mode=Household.DataMode.DEMO,
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+        )
+        real = Household.objects.create(
+            name="Real",
+            data_mode=Household.DataMode.REAL,
+            starting_balance=Decimal("2000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            f"/api/hassio_ingress/test-token/household/{demo.pk}/switch/",
+            {"next": "/api/hassio_ingress/test-token/"},
+            HTTP_SEC_FETCH_DEST="iframe",
+            HTTP_SEC_FETCH_SITE="same-origin",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(response.status_code, 403)
+        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        demo.refresh_from_db()
+        real.refresh_from_db()
+        self.assertTrue(demo.is_active)
+        self.assertFalse(real.is_active)
+
+    def test_home_assistant_ingress_does_not_bypass_csrf_outside_addon_mode(self):
+        demo = Household.objects.create(
+            name="Demo",
+            data_mode=Household.DataMode.DEMO,
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+        )
+        Household.objects.create(
+            name="Real",
+            data_mode=Household.DataMode.REAL,
+            starting_balance=Decimal("2000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            f"/api/hassio_ingress/test-token/household/{demo.pk}/switch/",
+            {"next": "/api/hassio_ingress/test-token/"},
+            HTTP_SEC_FETCH_DEST="iframe",
+            HTTP_SEC_FETCH_SITE="same-origin",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_language_switch_under_home_assistant_ingress_does_not_require_csrf(self):
         client = Client(enforce_csrf_checks=True)
 
