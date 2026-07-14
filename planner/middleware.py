@@ -4,7 +4,13 @@ from django.conf import settings
 from django.shortcuts import redirect
 
 from .feature_flags import feature_enabled
-from .privacy import PRIVACY_MODE_SESSION_KEY, reset_privacy_mode, set_privacy_mode
+from .privacy import (
+    PRIVACY_MODE_QUERY_PARAM_VALUE_OFF,
+    PRIVACY_MODE_QUERY_PARAM_VALUE_ON,
+    PRIVACY_MODE_SESSION_KEY,
+    reset_privacy_mode,
+    set_privacy_mode,
+)
 
 
 class RequireLoginMiddleware:
@@ -51,8 +57,18 @@ class PrivacyModeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        token = set_privacy_mode(request.session.get(PRIVACY_MODE_SESSION_KEY, False))
+        enabled = self._privacy_enabled(request)
+        token = set_privacy_mode(enabled)
         try:
             return self.get_response(request)
         finally:
             reset_privacy_mode(token)
+
+    @staticmethod
+    def _privacy_enabled(request):
+        query_value = request.GET.get(settings.LIF_PRIVACY_QUERY_PARAM)
+        if query_value == PRIVACY_MODE_QUERY_PARAM_VALUE_ON:
+            return True
+        if query_value == PRIVACY_MODE_QUERY_PARAM_VALUE_OFF:
+            return False
+        return request.session.get(PRIVACY_MODE_SESSION_KEY, False)

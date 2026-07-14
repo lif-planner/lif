@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.9
+
+- Persist privacy mode inside Home Assistant Ingress without relying on session
+  cookies.
+- Add `seed_demo_on_start` to insert demo households on startup when none exist.
+
 ## 1.1.8
 
 - Fix Home Assistant Ingress language and privacy controls when the ingress

@@ -1,41 +1,59 @@
 // Home Assistant Ingress may not reliably persist add-on cookies. Keep LiF's
-// explicit language choice in local storage and carry it through LiF links and
-// form actions with a tiny query parameter when running behind ingress.
+// explicit iframe-only state in local storage and carry it through LiF links
+// and form actions with tiny query parameters when running behind ingress.
 document.addEventListener("DOMContentLoaded", () => {
     const languageMeta = document.querySelector("meta[name='lif-language']");
-    const paramMeta = document.querySelector("meta[name='lif-language-param']");
+    const languageParamMeta = document.querySelector("meta[name='lif-language-param']");
+    const privacyMeta = document.querySelector("meta[name='lif-privacy']");
+    const privacyParamMeta = document.querySelector("meta[name='lif-privacy-param']");
     const ingressMeta = document.querySelector("meta[name='lif-ingress-path']");
     const ingressPath = ingressMeta ? ingressMeta.content : "";
-    if (!languageMeta || !paramMeta || !ingressPath) {
+    if (!languageMeta || !languageParamMeta || !privacyMeta || !privacyParamMeta || !ingressPath) {
         return;
     }
 
-    const storageKey = "lif-language";
-    const paramName = paramMeta.content || "lif_language";
+    const languageStorageKey = "lif-language";
+    const privacyStorageKey = "lif-privacy";
+    const languageParamName = languageParamMeta.content || "lif_language";
+    const privacyParamName = privacyParamMeta.content || "lif_privacy";
     const currentLanguage = languageMeta.content || "en";
+    const currentPrivacy = privacyMeta.content || "0";
     const currentUrl = new URL(window.location.href);
-    const queryLanguage = currentUrl.searchParams.get(paramName);
+    const queryLanguage = currentUrl.searchParams.get(languageParamName);
+    const queryPrivacy = currentUrl.searchParams.get(privacyParamName);
     let storedLanguage = "";
+    let storedPrivacy = "";
 
     try {
         if (queryLanguage) {
-            localStorage.setItem(storageKey, queryLanguage);
+            localStorage.setItem(languageStorageKey, queryLanguage);
         }
-        storedLanguage = localStorage.getItem(storageKey) || "";
+        if (queryPrivacy === "0" || queryPrivacy === "1") {
+            localStorage.setItem(privacyStorageKey, queryPrivacy);
+        }
+        storedLanguage = localStorage.getItem(languageStorageKey) || "";
+        storedPrivacy = localStorage.getItem(privacyStorageKey) || "";
     } catch (error) {
         storedLanguage = queryLanguage || "";
+        storedPrivacy = queryPrivacy || "";
     }
 
-    if (storedLanguage && storedLanguage !== currentLanguage && !queryLanguage) {
-        currentUrl.searchParams.set(paramName, storedLanguage);
+    if (
+        (storedLanguage && storedLanguage !== currentLanguage && !queryLanguage) ||
+        (storedPrivacy && storedPrivacy !== currentPrivacy && !queryPrivacy)
+    ) {
+        if (storedLanguage) {
+            currentUrl.searchParams.set(languageParamName, storedLanguage);
+        }
+        if (storedPrivacy === "0" || storedPrivacy === "1") {
+            currentUrl.searchParams.set(privacyParamName, storedPrivacy);
+        }
         window.location.replace(currentUrl.toString());
         return;
     }
 
     const language = queryLanguage || storedLanguage || currentLanguage;
-    if (!language) {
-        return;
-    }
+    const privacy = queryPrivacy || storedPrivacy || currentPrivacy;
 
     const shouldDecorate = (url) => {
         return url.origin === window.location.origin && url.pathname.startsWith(ingressPath);
@@ -48,7 +66,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!shouldDecorate(url)) {
             return value;
         }
-        url.searchParams.set(paramName, language);
+        if (language) {
+            url.searchParams.set(languageParamName, language);
+        }
+        if (privacy === "0" || privacy === "1") {
+            url.searchParams.set(privacyParamName, privacy);
+        }
         return url.pathname + url.search + url.hash;
     };
 
@@ -65,7 +88,20 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("select[name='language']").forEach((select) => {
         select.addEventListener("change", () => {
             try {
-                localStorage.setItem(storageKey, select.value);
+                localStorage.setItem(languageStorageKey, select.value);
+            } catch (error) {
+                /* ignore storage being unavailable */
+            }
+        });
+    });
+    document.querySelectorAll("form.privacy-switcher").forEach((form) => {
+        form.addEventListener("submit", () => {
+            const enabled = form.querySelector("input[name='enabled']");
+            if (!enabled) {
+                return;
+            }
+            try {
+                localStorage.setItem(privacyStorageKey, enabled.value === "1" ? "1" : "0");
             } catch (error) {
                 /* ignore storage being unavailable */
             }

@@ -1,5 +1,5 @@
 name: "LiF Planner"
-version: "1.1.8"
+version: "1.1.9"
 slug: "lif_planner"
 description: "Local-first financial life planning for German households."
 url: "https://github.com/lif-planner/lif"
@@ -27,11 +27,13 @@ map:
 backup: cold
 options:
   demo_mode: true
+  seed_demo_on_start: false
   login_required: false
   allowed_hosts:
     - "*"
 schema:
   demo_mode: bool
+  seed_demo_on_start: bool
   login_required: bool
   allowed_hosts:
     - str

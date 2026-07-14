@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="{% ingress_static 'planner/app.css' %}?v=40">
     <meta name="lif-language" content="{{ CURRENT_LANGUAGE|default:'en' }}">
     <meta name="lif-language-param" content="lif_language">
+    <meta name="lif-privacy" content="{{ privacy_mode_enabled|yesno:'1,0' }}">
+    <meta name="lif-privacy-param" content="lif_privacy">
     <meta name="lif-ingress-path" content="{{ request.META.SCRIPT_NAME|default:'' }}">
     <script src="{% ingress_static 'planner/app.js' %}?v=9" defer></script>
 </head>

@@ -9302,7 +9302,10 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertNotEqual(response.status_code, 403)
-        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        self.assertEqual(
+            response["Location"],
+            f"/api/hassio_ingress/test-token/?{settings.LIF_PRIVACY_QUERY_PARAM}=1",
+        )
         self.assertTrue(client.session["privacy_mode_enabled"])
 
     def test_privacy_toggle_under_home_assistant_ingress_without_header(self):
@@ -9315,8 +9318,30 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertNotEqual(response.status_code, 403)
-        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        self.assertEqual(
+            response["Location"],
+            f"/api/hassio_ingress/test-token/?{settings.LIF_PRIVACY_QUERY_PARAM}=1",
+        )
         self.assertTrue(client.session["privacy_mode_enabled"])
+
+    def test_privacy_mode_under_home_assistant_ingress_survives_without_session(self):
+        Household.objects.create(
+            name="Demo",
+            starting_balance=Decimal("1234.56"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.get(
+            f"/api/hassio_ingress/test-token/?{settings.LIF_PRIVACY_QUERY_PARAM}=1",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "••••• EUR")
+        self.assertContains(response, "On")
+        self.assertNotContains(response, "1,234.56 EUR")
 
     def test_privacy_toggle_under_home_assistant_ingress_rejects_ha_ui_redirects(self):
         client = Client(enforce_csrf_checks=True)
@@ -9328,7 +9353,10 @@ class ProjectionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        self.assertEqual(
+            response["Location"],
+            f"/api/hassio_ingress/test-token/?{settings.LIF_PRIVACY_QUERY_PARAM}=1",
+        )
 
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:

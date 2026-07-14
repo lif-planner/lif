@@ -1,7 +1,7 @@
 from datetime import date
 
 from .feature_flags import feature_flag_map
-from .privacy import PRIVACY_MODE_SESSION_KEY
+from .privacy import PRIVACY_MODE_SESSION_KEY, privacy_mode_enabled
 from lif.version import version_context
 
 
@@ -264,6 +264,6 @@ def feature_flags(request):
         "attention_items": attention_items,
         "attention_count": len(attention_items),
         "hidden_attention_count": hidden_attention_count,
-        "privacy_mode_enabled": request.session.get(PRIVACY_MODE_SESSION_KEY, False),
+        "privacy_mode_enabled": privacy_mode_enabled(),
         **version_context(),
     }

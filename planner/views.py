@@ -3,7 +3,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
 from django.contrib import messages
@@ -940,7 +940,10 @@ def privacy_mode_toggle(request):
     enabled = request.POST.get("enabled") == "1"
     request.session[PRIVACY_MODE_SESSION_KEY] = enabled
     messages.success(request, "Privacy mode is now on." if enabled else "Privacy mode is now off.")
-    return redirect(_safe_post_redirect_target(request))
+    target = _safe_post_redirect_target(request)
+    if _is_ingress_target(request, target):
+        target = _with_query_param(target, settings.LIF_PRIVACY_QUERY_PARAM, "1" if enabled else "0")
+    return redirect(target)
 
 
 def _safe_post_redirect_target(request):
@@ -969,6 +972,20 @@ def _with_script_name(request, path):
     if path == script_name or path.startswith(f"{script_name}/"):
         return path
     return f"{script_name}{path}"
+
+
+def _is_ingress_target(request, target):
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if script_name:
+        return True
+    return urlsplit(target).path.startswith("/api/hassio_ingress/")
+
+
+def _with_query_param(target, key, value):
+    parts = urlsplit(target)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query[key] = value
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def dashboard(request):

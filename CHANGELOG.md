@@ -8,6 +8,18 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.9] - 2026-07-14
+
+### Added
+
+- Home Assistant add-on option `seed_demo_on_start` to insert demo households on
+  startup when no demo household exists.
+
+### Fixed
+
+- Privacy mode now persists under Home Assistant Ingress using the same
+  iframe-local query state as language selection.
+
 ## [1.1.8] - 2026-07-14
 
 ### Fixed

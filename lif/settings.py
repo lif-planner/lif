@@ -145,6 +145,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en'
 LIF_LANGUAGE_COOKIE_NAME = "lif_language"
 LIF_LANGUAGE_QUERY_PARAM = "lif_language"
+LIF_PRIVACY_QUERY_PARAM = "lif_privacy"
 
 LANGUAGES = [
     ('en', _('English')),

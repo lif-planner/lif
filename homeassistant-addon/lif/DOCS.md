@@ -25,6 +25,12 @@ Home Assistant backups include this add-on data when the add-on is selected.
 When enabled, the add-on seeds synthetic demo data on first start. Disable this
 before entering real data in a new install.
 
+`seed_demo_on_start`
+
+When enabled, the add-on checks for demo households on every startup and inserts
+the synthetic demo data if none exists. This is non-destructive and does not
+replace existing real data or existing demo households.
+
 `login_required`
 
 When disabled, LiF relies on Home Assistant ingress access control. Enable it if

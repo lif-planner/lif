@@ -64,6 +64,10 @@ if [ "$(option demo_mode 1)" = "1" ]; then
     python manage.py seed_demo_if_needed --marker-file /data/.demo_seeded
 fi
 
+if [ "$(option seed_demo_on_start 0)" = "1" ]; then
+    python manage.py seed_demo_if_needed --marker-file /data/.demo_seeded
+fi
+
 exec gunicorn lif.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 2 \
