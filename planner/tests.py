@@ -3160,6 +3160,27 @@ class ProjectionTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("planner:dashboard"), fetch_redirect_response=False)
+        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "de")
+        self.assertEqual(response.cookies[settings.LIF_LANGUAGE_COOKIE_NAME].value, "de")
+
+    def test_lif_language_cookie_overrides_accept_language(self):
+        Household.objects.create(
+            name="Demo",
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        self.client.cookies[settings.LIF_LANGUAGE_COOKIE_NAME] = "de"
+
+        response = self.client.get(
+            reverse("planner:dashboard"),
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<html lang="de">')
+        self.assertContains(response, "Sprache")
 
     def test_household_clone_copies_planning_data_and_remaps_links(self):
         source = Household.objects.create(
@@ -9176,6 +9197,28 @@ class ProjectionTests(TestCase):
         self.assertNotEqual(response.status_code, 403)
         self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
         self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "de")
+        self.assertEqual(response.cookies[settings.LIF_LANGUAGE_COOKIE_NAME].value, "de")
+
+    def test_home_assistant_ingress_keeps_selected_language_after_redirect(self):
+        Household.objects.create(
+            name="Demo",
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        client = Client(enforce_csrf_checks=True)
+        client.cookies[settings.LIF_LANGUAGE_COOKIE_NAME] = "de"
+
+        response = client.get(
+            "/api/hassio_ingress/test-token/",
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<html lang="de">')
+        self.assertContains(response, "Sprache")
 
     def test_language_switch_under_home_assistant_ingress_rejects_ha_ui_redirects(self):
         client = Client(enforce_csrf_checks=True)

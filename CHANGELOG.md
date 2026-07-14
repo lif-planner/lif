@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.6] - 2026-07-14
+
+### Fixed
+
+- Language selection now persists after switching under Home Assistant Ingress
+  instead of falling back to the browser/Home Assistant language on the next
+  page load.
+
 ## [1.1.5] - 2026-07-14
 
 ### Fixed

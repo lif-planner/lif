@@ -48,20 +48,26 @@ def set_language_local(request):
     response = HttpResponseRedirect(target)
 
     if check_for_language(language):
-        response.set_cookie(
-            settings.LANGUAGE_COOKIE_NAME,
-            language,
-            max_age=settings.LANGUAGE_COOKIE_AGE,
-            path=settings.LANGUAGE_COOKIE_PATH,
-            domain=settings.LANGUAGE_COOKIE_DOMAIN,
-            secure=settings.LANGUAGE_COOKIE_SECURE,
-            httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
-            samesite=settings.LANGUAGE_COOKIE_SAMESITE,
-        )
+        _set_language_cookie(response, settings.LANGUAGE_COOKIE_NAME, language)
+        _set_language_cookie(response, settings.LIF_LANGUAGE_COOKIE_NAME, language)
         if hasattr(request, "session"):
+            request.session[settings.LIF_LANGUAGE_COOKIE_NAME] = language
             request.session[settings.LANGUAGE_COOKIE_NAME] = language
 
     return response
+
+
+def _set_language_cookie(response, name, language):
+    response.set_cookie(
+        name,
+        language,
+        max_age=settings.LANGUAGE_COOKIE_AGE,
+        path=settings.LANGUAGE_COOKIE_PATH,
+        domain=settings.LANGUAGE_COOKIE_DOMAIN,
+        secure=settings.LANGUAGE_COOKIE_SECURE,
+        httponly=settings.LANGUAGE_COOKIE_HTTPONLY,
+        samesite=settings.LANGUAGE_COOKIE_SAMESITE,
+    )
 
 
 def _safe_language_redirect_target(request):

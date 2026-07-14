@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.6
+
+- Keep the selected LiF language active after switching inside Home Assistant
+  Ingress.
+
 ## 1.1.5
 
 - Fix language selection under Home Assistant Ingress so it redirects back to

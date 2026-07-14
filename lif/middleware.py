@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.urls import get_script_prefix, set_script_prefix
+from django.utils.translation import check_for_language
 
 
 class HomeAssistantIngressMiddleware:
@@ -48,3 +50,31 @@ class HomeAssistantIngressMiddleware:
         request.META["PATH_INFO"] = stripped
         request.path_info = stripped
         request.path = f"{ingress_path}{stripped}"
+
+
+class PersistentLanguageMiddleware:
+    """Restore LiF's explicit language choice before Django selects a locale."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        language = self._preferred_language(request)
+        if language:
+            request.COOKIES[settings.LANGUAGE_COOKIE_NAME] = language
+        return self.get_response(request)
+
+    @staticmethod
+    def _preferred_language(request):
+        candidates = [
+            request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME),
+            request.COOKIES.get(settings.LIF_LANGUAGE_COOKIE_NAME),
+        ]
+        if hasattr(request, "session"):
+            candidates.append(request.session.get(settings.LIF_LANGUAGE_COOKIE_NAME))
+            candidates.append(request.session.get(settings.LANGUAGE_COOKIE_NAME))
+
+        for language in candidates:
+            if language and check_for_language(language):
+                return language
+        return ""
