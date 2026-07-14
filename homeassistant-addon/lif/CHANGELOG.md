@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4
+
+- Fix demo seeding on Home Assistant when a stale `/data/.demo_seeded` marker
+  exists but the database does not contain demo households.
+- Fix language selection under Home Assistant Ingress when the proxied POST
+  does not pass Django's standard CSRF check.
+
 ## 1.1.3
 
 - Fix missing CSS and JavaScript under Home Assistant Ingress by generating

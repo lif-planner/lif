@@ -60,9 +60,8 @@ export LIF_RUN_PRODUCTION_CHECKS=0
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
-if [ "$(option demo_mode 1)" = "1" ] && [ ! -f /data/.demo_seeded ]; then
-    python manage.py seed_demo
-    touch /data/.demo_seeded
+if [ "$(option demo_mode 1)" = "1" ]; then
+    python manage.py seed_demo_if_needed --marker-file /data/.demo_seeded
 fi
 
 exec gunicorn lif.wsgi:application \

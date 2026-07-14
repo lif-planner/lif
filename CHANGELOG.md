@@ -8,6 +8,16 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.4] - 2026-07-14
+
+### Fixed
+
+- Home Assistant demo-mode startup now checks whether demo households actually
+  exist before skipping seeding, so a stale `/data/.demo_seeded` marker no
+  longer leaves the add-on with an empty database.
+- Language selection no longer fails with CSRF errors when posted through Home
+  Assistant Ingress.
+
 ## [1.1.3] - 2026-07-14
 
 ### Fixed

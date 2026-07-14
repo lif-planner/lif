@@ -17,12 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.decorators.csrf import csrf_exempt
+from django.views.i18n import set_language
 
 from .views import health
 
 urlpatterns = [
     path('health/', health, name='health'),
-    path('i18n/', include('django.conf.urls.i18n')),
+    path('i18n/setlang/', csrf_exempt(set_language), name='set_language'),
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', include('planner.urls')),

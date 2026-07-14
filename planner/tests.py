@@ -20,6 +20,7 @@ from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.test import Client
 from django.test import TestCase
 from django.test import RequestFactory
 from django.test import override_settings
@@ -9162,6 +9163,19 @@ class ProjectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(seen["path_info"], "/static/planner/app.css")
 
+    def test_language_switch_under_home_assistant_ingress_does_not_require_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            "/api/hassio_ingress/test-token/i18n/setlang/",
+            {"language": "de", "next": "/api/hassio_ingress/test-token/"},
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(response.status_code, 403)
+        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "de")
+
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:
             call_command("deploy_local", skip_backup=True, skip_smoke_test=True)
@@ -12758,6 +12772,28 @@ class SeedDemoCommandTests(TestCase):
         self.assertEqual(real.starting_balance, Decimal("1234.00"))
         self.assertEqual(demo.data_mode, Household.DataMode.DEMO)
         self.assertEqual(Household.objects.filter(data_mode=Household.DataMode.DEMO).count(), 2)
+
+    def test_seed_demo_if_needed_ignores_stale_marker_when_demo_missing(self):
+        with TemporaryDirectory() as tmpdir:
+            marker = Path(tmpdir) / ".demo_seeded"
+            marker.touch()
+
+            call_command("seed_demo_if_needed", marker_file=str(marker))
+
+        self.assertEqual(Household.objects.filter(data_mode=Household.DataMode.DEMO).count(), 2)
+        self.assertTrue(Household.objects.filter(name=HOUSEHOLD_NAME).exists())
+
+    def test_seed_demo_if_needed_does_not_recreate_existing_demo(self):
+        call_command("seed_demo")
+        household_id = Household.objects.get(name=HOUSEHOLD_NAME).pk
+
+        with TemporaryDirectory() as tmpdir:
+            marker = Path(tmpdir) / ".demo_seeded"
+            call_command("seed_demo_if_needed", marker_file=str(marker))
+            self.assertTrue(marker.exists())
+
+        self.assertEqual(Household.objects.filter(data_mode=Household.DataMode.DEMO).count(), 2)
+        self.assertEqual(Household.objects.get(name=HOUSEHOLD_NAME).pk, household_id)
 
 
 class FakeMoneyMoneyAccount:
