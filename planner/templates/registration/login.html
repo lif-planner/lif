@@ -1,13 +1,14 @@
 {% extends "planner/base.html" %}
+{% load i18n %}
 
-{% block title %}Login | LiF Planner{% endblock %}
+{% block title %}{% trans "Login" %} | LiF Planner{% endblock %}
 
 {% block content %}
 <section class="hero">
     <div>
-        <p class="eyebrow">Login</p>
+        <p class="eyebrow">{% trans "Login" %}</p>
         <h1>LiF Planner</h1>
-        <p class="muted">Sign in to view local planning data.</p>
+        <p class="muted">{% trans "Sign in to view local planning data." %}</p>
     </div>
 </section>
 
@@ -17,7 +18,7 @@
         {{ form.as_div }}
         <input type="hidden" name="next" value="{{ next }}">
         <div class="form-actions">
-            <button class="button" type="submit">Login</button>
+            <button class="button" type="submit">{% trans "Login" %}</button>
         </div>
     </form>
 </section>

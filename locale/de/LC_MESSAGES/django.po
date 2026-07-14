@@ -237,9 +237,7 @@ msgstr "blockiert"
 
 #: planner/templates/planner/account_confirm_delete.html:46
 msgid "Edit or delete the linked planning item first, then return here."
-msgstr ""
-"Bearbeite oder lösche zuerst den verknüpften Planungseintrag und kehre dann "
-"hierher zurück."
+msgstr "Bearbeite oder lösche zuerst den verknüpften Planungseintrag und kehre dann hierher zurück."
 
 #: planner/templates/planner/account_confirm_delete.html:55
 msgid "Confirm"
@@ -555,8 +553,7 @@ msgstr "Haushalt"
 
 #: planner/templates/planner/account_detail.html:218
 msgid "No transfer rules or planned investment purchases target this account."
-msgstr ""
-"Keine Transferregeln oder geplanten Investmentkäufe zielen auf dieses Konto."
+msgstr "Keine Transferregeln oder geplanten Investmentkäufe zielen auf dieses Konto."
 
 #: planner/templates/planner/account_detail.html:229
 msgid "Future Cash Flow"
@@ -977,9 +974,7 @@ msgstr ""
 
 #: planner/templates/planner/account_setup.html:112
 msgid "Use this for assets that are not liquid cash and not part of a depot."
-msgstr ""
-"Nutze dies für Vermögenswerte, die weder liquides Cash noch Teil eines "
-"Depots sind."
+msgstr "Nutze dies für Vermögenswerte, die weder liquides Geld noch Teil eines Depots sind."
 
 #: planner/templates/planner/analytics.html:5
 #: planner/templates/planner/base.html:68
@@ -995,9 +990,7 @@ msgstr "Projektionsanalysen"
 
 #: planner/templates/planner/analytics.html:13
 msgid "Interactive projection graphs with adjustable range and granularity."
-msgstr ""
-"Interaktive Projektionsdiagramme mit einstellbarem Zeitraum und "
-"Granularität."
+msgstr "Interaktive Projektionsdiagramme mit einstellbarem Zeitraum und Granularität."
 
 #: planner/templates/planner/analytics.html:17
 #: planner/templates/planner/base.html:94
@@ -1656,9 +1649,7 @@ msgstr "Keine ausgeblendeten Aufmerksamkeitshinweise"
 
 #: planner/templates/planner/attention_settings.html:122
 msgid "Use Hide in the right rail to quiet optional nudges."
-msgstr ""
-"Nutze „Ausblenden“ in der rechten Leiste, um optionale Hinweise stumm zu "
-"schalten."
+msgstr "Nutze „Ausblenden“ in der rechten Leiste, um optionale Hinweise auszublenden."
 
 #: planner/templates/planner/backup_center.html:4
 #: planner/templates/planner/backup_center.html:25
@@ -2148,8 +2139,7 @@ msgstr "Cash-Ziele"
 
 #: planner/templates/planner/cash_goal_index.html:14
 msgid "Yearly household cash needs for FIRE and retirement draw planning."
-msgstr ""
-"Jährlicher Cash-Bedarf des Haushalts für FIRE- und Rentenentnahmeplanung."
+msgstr "Jährlicher Liquiditätsbedarf des Haushalts für FIRE- und Ruhestandsentnahmen."
 
 #: planner/templates/planner/cash_goal_index.html:16
 #: planner/templates/planner/cash_goal_index.html:34
@@ -2296,9 +2286,7 @@ msgstr "Änderungsdetail"
 
 #: planner/templates/planner/change_history_detail.html:15
 msgid "A single audit entry showing what changed before and after the save."
-msgstr ""
-"Ein einzelner Audit-Eintrag, der zeigt, was sich vor und nach dem Speichern "
-"geändert hat."
+msgstr "Ein einzelner Audit-Eintrag, der zeigt, was sich vor und nach dem Speichern geändert hat."
 
 #: planner/templates/planner/change_history_detail.html:18
 msgid "Back to history"
@@ -2382,9 +2370,7 @@ msgstr "Diagramme"
 
 #: planner/templates/planner/dashboard.html:41
 msgid "Explore liquid assets, depot growth, debts, and retirement draw needs."
-msgstr ""
-"Erkunde liquide Vermögenswerte, Depotwachstum, Schulden und "
-"Rentenentnahmebedarf."
+msgstr "Analysiere liquide Mittel, Depotwachstum, Schulden und Entnahmebedarf im Ruhestand."
 
 #: planner/templates/planner/dashboard.html:46
 msgid "2. Decisions"
@@ -2420,9 +2406,7 @@ msgstr "Bericht"
 
 #: planner/templates/planner/dashboard.html:59
 msgid "Open the family journey view for a presentation-friendly summary."
-msgstr ""
-"Öffne die Familien-Reise-Ansicht für eine präsentationsfreundliche "
-"Zusammenfassung."
+msgstr "Öffne die Familienreise-Ansicht für eine präsentationsfreundliche Zusammenfassung."
 
 #: planner/templates/planner/dashboard.html:67
 msgid "Money display"
@@ -2726,9 +2710,7 @@ msgstr "Nicht gesetzt"
 
 #: planner/templates/planner/dashboard.html:399
 msgid "Add a yearly cash need to compare income with FIRE draw needs."
-msgstr ""
-"Füge einen jährlichen Cash-Bedarf hinzu, um Einkommen mit FIRE-"
-"Entnahmebedarf zu vergleichen."
+msgstr "Füge einen jährlichen Liquiditätsbedarf hinzu, um Einkommen mit FIRE-Entnahmebedarf zu vergleichen."
 
 #: planner/templates/planner/dashboard.html:410
 msgid "Compare"
@@ -2958,9 +2940,7 @@ msgstr "Vollständigkeits-Checkliste"
 
 #: planner/templates/planner/data_quality.html:50
 msgid "A quick trust checklist before relying on real-data forecasts."
-msgstr ""
-"Eine schnelle Vertrauens-Checkliste, bevor du dich auf Prognosen mit echten "
-"Daten verlässt."
+msgstr "Eine kurze Vertrauens-Checkliste, bevor du dich auf Prognosen mit echten Daten verlässt."
 
 #: planner/templates/planner/data_quality.html:53
 #, python-format
@@ -3012,8 +2992,7 @@ msgstr "Keine Probleme gefunden"
 
 #: planner/templates/planner/data_quality.html:120
 msgid "The current model passed the selected data quality checks."
-msgstr ""
-"Das aktuelle Modell hat die ausgewählten Datenqualitätsprüfungen bestanden."
+msgstr "Das aktuelle Modell hat die ausgewählten Datenqualitätsprüfungen bestanden."
 
 #: planner/templates/planner/debt_detail.html:9
 msgid "Debt detail"
@@ -3342,8 +3321,7 @@ msgstr "Pool-Saldo"
 
 #: planner/templates/planner/general_pool_detail.html:83
 msgid "No forecast events currently use the general liquid pool."
-msgstr ""
-"Aktuell nutzen keine Prognoseereignisse den allgemeinen Liquiditätspool."
+msgstr "Derzeit nutzen keine Prognoseereignisse den allgemeinen Liquiditätspool."
 
 #: planner/templates/planner/goal_planner.html:4
 msgid "Goal Planner"
@@ -3415,8 +3393,7 @@ msgstr "So verwendest du das Ergebnis"
 
 #: planner/templates/planner/goal_planner.html:74
 msgid "Create real plan entries only after the result looks sensible."
-msgstr ""
-"Erstelle echte Planungseinträge erst, wenn das Ergebnis plausibel wirkt."
+msgstr "Erstelle echte Planungseinträge erst, wenn das Ergebnis plausibel aussieht."
 
 #: planner/templates/planner/goal_planner.html:78
 msgid "Add income or expense rule"
@@ -3781,9 +3758,7 @@ msgstr "CSV-Depotpositionen"
 
 #: planner/templates/planner/import_center.html:33
 msgid "Import ETF, stock, and bond positions after the depot account exists."
-msgstr ""
-"Importiere ETF-, Aktien- und Anleihepositionen, sobald das Depotkonto "
-"existiert."
+msgstr "Importiere ETF-, Aktien- und Anleihepositionen, nachdem das Depotkonto existiert."
 
 #: planner/templates/planner/import_center.html:36
 msgid "MoneyMoney"
@@ -3803,8 +3778,7 @@ msgstr "Per Flag"
 
 #: planner/templates/planner/import_center.html:42
 msgid "Enable moneymoney_import when live connector work starts."
-msgstr ""
-"Aktiviere moneymoney_import, sobald die Arbeit am Live-Connector beginnt."
+msgstr "Aktiviere moneymoney_import, wenn die Arbeit am Live-Connector beginnt."
 
 #: planner/templates/planner/import_center.html:47
 msgid "Planned"
@@ -4635,8 +4609,7 @@ msgstr "Einnahmen, Ausgaben und Ereignisse"
 
 #: planner/templates/planner/plan_index.html:38
 msgid "Recurring rules and planned changes that drive the forecast."
-msgstr ""
-"Wiederkehrende Regeln und geplante Änderungen, die die Prognose antreiben."
+msgstr "Wiederkehrende Regeln und geplante Änderungen, die die Prognose antreiben."
 
 #: planner/templates/planner/plan_index.html:49
 msgid "Monthly income"
@@ -5196,9 +5169,7 @@ msgstr "Grundlage für echte Daten sieht bereit aus"
 
 #: planner/templates/planner/real_data_readiness.html:74
 msgid "Keep reviewing quality warnings after each import or planning change."
-msgstr ""
-"Prüfe Qualitätswarnungen weiterhin nach jedem Import oder jeder "
-"Planänderung."
+msgstr "Prüfe Qualitätswarnungen nach jedem Import und nach jeder Planungsänderung erneut."
 
 #: planner/templates/planner/real_data_readiness.html:84
 #, python-format
@@ -5947,9 +5918,7 @@ msgstr "Keine Positionen im Snapshot."
 
 #: planner/templates/planner/snapshot_review.html:11
 msgid "Compare two frozen snapshots to see whether reality followed the plan."
-msgstr ""
-"Vergleiche zwei eingefrorene Snapshots, um zu sehen, ob die Realität dem "
-"Plan gefolgt ist."
+msgstr "Vergleiche zwei eingefrorene Snapshots, um zu sehen, ob die Realität dem Plan gefolgt ist."
 
 #: planner/templates/planner/snapshot_review.html:21
 msgid "Two snapshots needed"
@@ -5957,8 +5926,7 @@ msgstr "Zwei Snapshots benötigt"
 
 #: planner/templates/planner/snapshot_review.html:22
 msgid "Create at least two snapshots before running an annual review."
-msgstr ""
-"Erstelle mindestens zwei Snapshots, bevor du ein Jahresreview durchführst."
+msgstr "Erstelle mindestens zwei Snapshots, bevor du einen Jahresreview startest."
 
 #: planner/templates/planner/snapshot_review.html:29
 msgid "Baseline snapshot"
@@ -6078,8 +6046,7 @@ msgstr "aus"
 
 #: planner/templates/planner/system_status.html:13
 msgid "Health, deployment, backup, and feature flag status for this checkout."
-msgstr ""
-"Status von Health, Deployment, Backup und Feature Flags für diesen Checkout."
+msgstr "Status zu Gesundheit, Deployment, Backups und Feature Flags für diesen Checkout."
 
 #: planner/templates/planner/system_status.html:16
 msgid "Health JSON"
@@ -6160,6 +6127,12 @@ msgstr "Erlaubte Hosts"
 #: planner/templates/planner/system_status.html:130
 msgid "Login required"
 msgstr "Login erforderlich"
+
+msgid "Login"
+msgstr "Anmelden"
+
+msgid "Sign in to view local planning data."
+msgstr "Melde dich an, um lokale Planungsdaten zu sehen."
 
 #: planner/templates/planner/system_status.html:131
 msgid "Yes"
@@ -6280,8 +6253,7 @@ msgstr "Geplante Transfers"
 
 #: planner/templates/planner/transfer_plan.html:151
 msgid "Events are generated from the same projection that drives analytics."
-msgstr ""
-"Ereignisse stammen aus derselben Projektion, die auch die Analysen antreibt."
+msgstr "Ereignisse werden aus derselben Projektion erzeugt, die auch die Analytics antreibt."
 
 #: planner/templates/planner/transfer_plan.html:159
 msgid "Transfer"
@@ -6341,9 +6313,7 @@ msgstr "Lokaler Jahresbericht"
 
 #: planner/templates/planner/yearly_report.html:12
 msgid "A yearly planning snapshot generated from local projection data only."
-msgstr ""
-"Eine jährliche Planungsmomentaufnahme, ausschließlich aus lokalen "
-"Projektionsdaten erzeugt."
+msgstr "Ein jährlicher Planungssnapshot, der ausschließlich aus lokalen Projektionsdaten erzeugt wird."
 
 #: planner/templates/planner/yearly_report.html:16
 msgid "Open slides"
@@ -6403,9 +6373,7 @@ msgstr "Depotaktivität"
 
 #: planner/templates/planner/yearly_report.html:148
 msgid "No depot growth, payouts, draws, or planned purchases in this year."
-msgstr ""
-"Kein Depotwachstum, keine Ausschüttungen, Entnahmen oder geplanten Käufe in "
-"diesem Jahr."
+msgstr "Kein Depotwachstum, keine Auszahlungen, Entnahmen oder geplanten Käufe in diesem Jahr."
 
 #: planner/templates/planner/yearly_report.html:153
 msgid "Debt &amp; Loans"
@@ -6413,9 +6381,7 @@ msgstr "Schulden &amp; Darlehen"
 
 #: planner/templates/planner/yearly_report.html:155
 msgid "No debt, extra repayment, or private loan activity in this year."
-msgstr ""
-"Keine Schulden-, Sondertilgungs- oder Privatdarlehensaktivität in diesem "
-"Jahr."
+msgstr "Keine Schulden-, Sondertilgungs- oder Privatdarlehensaktivität in diesem Jahr."
 
 #: planner/templates/planner/yearly_report.html:162
 msgid "Monthly Appendix"
@@ -6435,9 +6401,7 @@ msgstr "Keine Projektion verfügbar"
 
 #: planner/templates/planner/yearly_report.html:214
 msgid "Add a household start date and planning horizon to generate a report."
-msgstr ""
-"Füge ein Haushaltsstartdatum und einen Planungshorizont hinzu, um einen "
-"Bericht zu erzeugen."
+msgstr "Füge Startdatum und Planungshorizont des Haushalts hinzu, um einen Bericht zu erzeugen."
 
 #: planner/templates/planner/yearly_report_slides.html:8
 #, python-format
@@ -6511,8 +6475,7 @@ msgstr "3. Wie sieht es in fünf Jahren aus?"
 
 #: planner/templates/planner/yearly_report_slides.html:278
 msgid "The medium-term shape matters more than one exact year."
-msgstr ""
-"Die mittelfristige Entwicklung zählt mehr als ein einzelnes exaktes Jahr."
+msgstr "Der mittelfristige Verlauf ist wichtiger als ein einzelnes exaktes Jahr."
 
 #: planner/templates/planner/yearly_report_slides.html:303
 msgid "4. Which major changes happen?"
