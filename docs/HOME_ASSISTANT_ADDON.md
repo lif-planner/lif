@@ -32,6 +32,21 @@ that file becomes the root-level Home Assistant repository descriptor.
 5. Split the packaging into a dedicated Home Assistant add-on repository.
 6. Add screenshots and install docs for Home Assistant users.
 
+## Export To Dedicated Repository
+
+After creating `lif-planner/home-assistant-addon` on GitHub, export the staged
+add-on repository:
+
+```bash
+./scripts/export_homeassistant_addon_repo.sh ../home-assistant-addon
+cd ../home-assistant-addon
+git push -u origin main
+```
+
+The export script copies `homeassistant-addon/` into a clean standalone Git
+repository, creates an initial commit with the public maintainer identity, and
+sets `git@github.com:lif-planner/home-assistant-addon.git` as `origin`.
+
 ## Current Limitations
 
 - The add-on metadata points at `ghcr.io/lif-planner/lif`, published by GitHub
