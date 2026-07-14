@@ -9117,6 +9117,30 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(result.stdout.strip(), "lif.local,192.0.2.10")
 
+    def test_home_assistant_ingress_prefix_routes_to_health(self):
+        response = self.client.get(
+            "/api/hassio_ingress/test-token/health/",
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+
+    def test_home_assistant_ingress_prefix_is_used_for_generated_urls(self):
+        Household.objects.create(
+            name="Ingress Test",
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+        )
+        response = self.client.get(
+            "/api/hassio_ingress/test-token/",
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '/api/hassio_ingress/test-token/analytics/')
+
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:
             call_command("deploy_local", skip_backup=True, skip_smoke_test=True)

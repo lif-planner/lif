@@ -52,5 +52,5 @@ control layer.
 
 - The add-on points at `ghcr.io/lif-planner/lif`; Home Assistant uses the
   add-on version as the image tag.
-- Ingress URL handling still needs end-to-end testing with charts, login, and
-  static files.
+- Ingress chart sizing and form flows still need end-to-end testing on more
+  Home Assistant installations.

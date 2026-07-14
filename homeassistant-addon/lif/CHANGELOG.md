@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- Fix Home Assistant Ingress path handling so the add-on no longer shows
+  `404: Not Found` behind the dynamic ingress URL prefix.
+
 ## 1.1.1
 
 - Default Home Assistant add-on allowed hosts to `*` so ingress and dynamic

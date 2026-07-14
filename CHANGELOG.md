@@ -8,6 +8,13 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.2] - 2026-07-14
+
+### Fixed
+
+- Home Assistant Ingress requests with dynamic `X-Ingress-Path` prefixes now
+  route correctly and generated LiF links keep the ingress prefix.
+
 ## [1.1.1] - 2026-07-14
 
 ### Fixed

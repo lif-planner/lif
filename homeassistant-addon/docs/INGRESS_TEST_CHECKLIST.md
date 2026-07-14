@@ -15,6 +15,7 @@ Use this checklist before recommending the Home Assistant add-on for real data.
 
 - Open LiF from the Home Assistant sidebar.
 - Confirm the dashboard loads without a Django `400 Bad Request`.
+- Confirm the dashboard loads without `404: Not Found`.
 - Confirm CSS and JavaScript load.
 - Open **Forecast -> Analytics** and confirm ECharts charts render.
 - Open pages with forms and confirm redirects stay inside the ingress path.
