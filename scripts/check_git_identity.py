@@ -143,6 +143,31 @@ def check_public_range(base: str, head: str, label: str) -> None:
         )
 
 
+def check_public_tag(head: str, label: str) -> None:
+    if head == ZERO_SHA:
+        return
+
+    commit = run_git(["rev-parse", f"{head}^{{commit}}"])
+    author, committer = commit_metadata(commit)
+    if expected(author) and expected(committer):
+        return
+
+    fail(
+        "\n".join(
+            [
+                "Refusing to push public tag with unexpected target commit identity.",
+                f"Expected tag target author and committer to be: {format_expected()}",
+                "",
+                f"- {commit[:12]} in {label}",
+                f"  author:    {author.name} <{author.email}>",
+                f"  committer: {committer.name} <{committer.email}>",
+                "",
+                "Move the tag to a public-safe commit before pushing.",
+            ]
+        )
+    )
+
+
 def is_public_destination(remote_name: str, remote_url: str, remote_ref: str) -> bool:
     public_markers = (
         "github.com:lif-planner/lif.git",
@@ -164,6 +189,9 @@ def check_pre_push(remote_name: str, remote_url: str) -> None:
             continue
         local_ref, local_sha, remote_ref, remote_sha = parts
         if not is_public_destination(remote_name, remote_url, remote_ref):
+            continue
+        if remote_ref.startswith("refs/tags/"):
+            check_public_tag(local_sha, f"{local_ref} -> {remote_ref}")
             continue
         check_public_range(remote_sha, local_sha, f"{local_ref} -> {remote_ref}")
 
