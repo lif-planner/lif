@@ -8,6 +8,20 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.10] - 2026-07-14
+
+### Fixed
+
+- The published Home Assistant add-on now actually receives its add-on
+  environment. The add-on pulls the generic container image (`image:` in
+  `config.yaml`), whose entrypoint never ran the add-on's `run.sh` -- so
+  `ALLOWED_HOSTS` stayed at the localhost-only default and every Ingress
+  request failed with HTTP 400 (surfacing as broken language and privacy
+  controls, dead add-on options, and debug mode left on). The container
+  entrypoint now detects the Home Assistant add-on via `/data/options.json`
+  and applies the full add-on environment itself; `run.sh` delegates to the
+  same entrypoint so locally built add-ons behave identically.
+
 ## [1.1.9] - 2026-07-14
 
 ### Added

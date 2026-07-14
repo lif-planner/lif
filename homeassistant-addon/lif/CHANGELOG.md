@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.10
+
+- Fix the published add-on running without its add-on environment: the pulled
+  image never executed `run.sh`, leaving `ALLOWED_HOSTS` at the localhost-only
+  default so every Ingress request failed with HTTP 400. This is why language
+  and privacy controls (and the add-on options) did not work. The container
+  entrypoint now detects Home Assistant via `/data/options.json` and applies
+  the add-on environment itself.
+
 ## 1.1.9
 
 - Persist privacy mode inside Home Assistant Ingress without relying on session
