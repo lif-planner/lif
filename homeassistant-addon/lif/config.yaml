@@ -1,5 +1,5 @@
 name: "LiF Planner"
-version: "1.1.0"
+version: "1.1.1"
 slug: "lif_planner"
 description: "Local-first financial life planning for German households."
 url: "https://github.com/lif-planner/lif"
@@ -29,8 +29,7 @@ options:
   demo_mode: true
   login_required: false
   allowed_hosts:
-    - "homeassistant.local"
-    - "homeassistant"
+    - "*"
 schema:
   demo_mode: bool
   login_required: bool

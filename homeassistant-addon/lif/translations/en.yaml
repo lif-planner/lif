@@ -7,6 +7,6 @@ configuration:
     description: Require LiF login in addition to Home Assistant access.
   allowed_hosts:
     name: Allowed hosts
-    description: Hostnames accepted by Django when serving LiF.
+    description: Hostnames accepted by Django. Keep * for Home Assistant ingress; restrict this if exposing the direct port.
 network:
   8000/tcp: Optional direct LiF web interface

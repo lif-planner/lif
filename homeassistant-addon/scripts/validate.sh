@@ -34,6 +34,7 @@ required = [
     'image: "ghcr.io/lif-planner/lif"',
     'ingress: true',
     'ingress_port: 8000',
+    'allowed_hosts:\n    - "*"',
     'backup: cold',
 ]
 missing = [item for item in required if item not in config]

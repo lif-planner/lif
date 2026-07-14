@@ -25,9 +25,17 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
 LIF_REQUIRE_LOGIN = os.environ.get("LIF_REQUIRE_LOGIN", "0").strip().lower() in {"1", "true", "yes", "on"}
 
+def _default_allowed_hosts():
+    if os.environ.get("LIF_HOME_ASSISTANT_ADDON", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return "*"
+    if os.environ.get("SUPERVISOR_TOKEN"):
+        return "*"
+    return "127.0.0.1,localhost"
+
+
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", _default_allowed_hosts()).split(",")
     if host.strip()
 ]
 

@@ -7,6 +7,6 @@ configuration:
     description: LiF-Anmeldung zusaetzlich zum Home-Assistant-Zugriff verlangen.
   allowed_hosts:
     name: Erlaubte Hosts
-    description: Hostnamen, die Django fuer LiF akzeptiert.
+    description: Hostnamen, die Django akzeptiert. Fuer Home-Assistant-Ingress * behalten; bei direktem Port einschraenken.
 network:
   8000/tcp: Optionale direkte LiF-Weboberflaeche

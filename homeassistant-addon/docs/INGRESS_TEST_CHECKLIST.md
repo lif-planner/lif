@@ -32,7 +32,9 @@ Use this checklist before recommending the Home Assistant add-on for real data.
 ## Optional Direct Port
 
 - Enable the optional direct web port.
-- Add the LAN hostname/IP to `allowed_hosts`.
+- Keep the default `allowed_hosts: ["*"]` for ingress testing. If you expose the
+  optional direct web port, enable LiF login and optionally restrict
+  `allowed_hosts` to the LAN hostname/IP.
 - Enable `login_required: true` before entering real data.
 - Confirm direct access requires LiF login.
 

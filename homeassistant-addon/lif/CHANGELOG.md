@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+- Default Home Assistant add-on allowed hosts to `*` so ingress and dynamic
+  local-network hostnames do not trigger Django 400 Bad Request responses.
+- Document when to keep the wildcard and when to restrict hosts for direct-port
+  access.
+
 ## 1.1.0
 
 - Add repository CI, validation scripts, and release workflow documentation.

@@ -32,12 +32,21 @@ you expose the optional direct web port.
 
 `allowed_hosts`
 
-Additional hostnames accepted by Django. Keep this narrow for real data.
+Hostnames accepted by Django. The default is `*` because Home Assistant
+Ingress and local-network access can present dynamic hostnames, add-on slugs,
+IP addresses, or Supervisor proxy hosts. In the add-on, Home Assistant is the
+primary access boundary.
+
+If you expose the optional direct web port outside Home Assistant, enable
+`login_required` and replace `*` with the exact hostnames or IP addresses you
+use.
 
 ## Access
 
 The preferred access path is Home Assistant ingress from the sidebar panel. The
-direct port is disabled by default.
+direct port is disabled by default. If you enable the direct port for LAN
+access, also enable LiF login or keep the app behind another trusted access
+control layer.
 
 ## Known Gaps
 

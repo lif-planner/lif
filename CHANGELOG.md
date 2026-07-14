@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.1] - 2026-07-14
+
+### Fixed
+
+- Home Assistant add-on deployments now default Django `ALLOWED_HOSTS` to `*`
+  when running under Home Assistant/Supervisor, avoiding 400 Bad Request errors
+  caused by dynamic ingress or local-network hostnames.
+
 ## [1.1.0] - 2026-07-14
 
 ### Added

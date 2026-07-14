@@ -9054,6 +9054,69 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(result.stdout.strip(), "/data/db.sqlite3")
 
+    def test_home_assistant_addon_defaults_to_wildcard_allowed_hosts(self):
+        env = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "lif.settings",
+            "LIF_HOME_ASSISTANT_ADDON": "1",
+        }
+        env.pop("DJANGO_ALLOWED_HOSTS", None)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from django.conf import settings; print(','.join(settings.ALLOWED_HOSTS))",
+            ],
+            check=True,
+            capture_output=True,
+            env=env,
+            text=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), "*")
+
+    def test_home_assistant_supervisor_defaults_to_wildcard_allowed_hosts(self):
+        env = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "lif.settings",
+            "SUPERVISOR_TOKEN": "test-token",
+        }
+        env.pop("DJANGO_ALLOWED_HOSTS", None)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from django.conf import settings; print(','.join(settings.ALLOWED_HOSTS))",
+            ],
+            check=True,
+            capture_output=True,
+            env=env,
+            text=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), "*")
+
+    def test_explicit_allowed_hosts_override_home_assistant_default(self):
+        env = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "lif.settings",
+            "LIF_HOME_ASSISTANT_ADDON": "1",
+            "DJANGO_ALLOWED_HOSTS": "lif.local,192.0.2.10",
+        }
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from django.conf import settings; print(','.join(settings.ALLOWED_HOSTS))",
+            ],
+            check=True,
+            capture_output=True,
+            env=env,
+            text=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), "lif.local,192.0.2.10")
+
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:
             call_command("deploy_local", skip_backup=True, skip_smoke_test=True)

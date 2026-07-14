@@ -51,8 +51,9 @@ export DJANGO_DEBUG=0
 export DJANGO_DB_PATH="$DB_PATH"
 export DJANGO_STATIC_ROOT="$STATIC_ROOT"
 export LIF_BACKUP_DIR="$BACKUP_DIR"
+export LIF_HOME_ASSISTANT_ADDON=1
 export LIF_REQUIRE_LOGIN="$(option login_required 0)"
-export DJANGO_ALLOWED_HOSTS="$(option allowed_hosts "homeassistant.local,homeassistant")"
+export DJANGO_ALLOWED_HOSTS="$(option allowed_hosts "*")"
 export DJANGO_TRUST_PROXY_SSL_HEADER=1
 export LIF_RUN_PRODUCTION_CHECKS=0
 
