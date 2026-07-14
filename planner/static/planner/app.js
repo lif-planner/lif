@@ -1,3 +1,78 @@
+// Home Assistant Ingress may not reliably persist add-on cookies. Keep LiF's
+// explicit language choice in local storage and carry it through LiF links and
+// form actions with a tiny query parameter when running behind ingress.
+document.addEventListener("DOMContentLoaded", () => {
+    const languageMeta = document.querySelector("meta[name='lif-language']");
+    const paramMeta = document.querySelector("meta[name='lif-language-param']");
+    const ingressMeta = document.querySelector("meta[name='lif-ingress-path']");
+    const ingressPath = ingressMeta ? ingressMeta.content : "";
+    if (!languageMeta || !paramMeta || !ingressPath) {
+        return;
+    }
+
+    const storageKey = "lif-language";
+    const paramName = paramMeta.content || "lif_language";
+    const currentLanguage = languageMeta.content || "en";
+    const currentUrl = new URL(window.location.href);
+    const queryLanguage = currentUrl.searchParams.get(paramName);
+    let storedLanguage = "";
+
+    try {
+        if (queryLanguage) {
+            localStorage.setItem(storageKey, queryLanguage);
+        }
+        storedLanguage = localStorage.getItem(storageKey) || "";
+    } catch (error) {
+        storedLanguage = queryLanguage || "";
+    }
+
+    if (storedLanguage && storedLanguage !== currentLanguage && !queryLanguage) {
+        currentUrl.searchParams.set(paramName, storedLanguage);
+        window.location.replace(currentUrl.toString());
+        return;
+    }
+
+    const language = queryLanguage || storedLanguage || currentLanguage;
+    if (!language) {
+        return;
+    }
+
+    const shouldDecorate = (url) => {
+        return url.origin === window.location.origin && url.pathname.startsWith(ingressPath);
+    };
+    const decorateUrl = (value) => {
+        if (!value || value.startsWith("#") || value.startsWith("mailto:") || value.startsWith("tel:")) {
+            return value;
+        }
+        const url = new URL(value, window.location.href);
+        if (!shouldDecorate(url)) {
+            return value;
+        }
+        url.searchParams.set(paramName, language);
+        return url.pathname + url.search + url.hash;
+    };
+
+    document.querySelectorAll("a[href]").forEach((link) => {
+        link.setAttribute("href", decorateUrl(link.getAttribute("href")));
+    });
+    document.querySelectorAll("form[action]").forEach((form) => {
+        form.setAttribute("action", decorateUrl(form.getAttribute("action")));
+        const next = form.querySelector("input[name='next']");
+        if (next) {
+            next.value = decorateUrl(next.value);
+        }
+    });
+    document.querySelectorAll("select[name='language']").forEach((select) => {
+        select.addEventListener("change", () => {
+            try {
+                localStorage.setItem(storageKey, select.value);
+            } catch (error) {
+                /* ignore storage being unavailable */
+            }
+        });
+    });
+});
+
 // Sidebar accordion: highlight the active link, open only the group it lives in,
 // and keep one group open at a time. Groups are default-open in the HTML so the
 // nav still works without JS.

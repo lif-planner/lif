@@ -5,6 +5,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponseRedirect, JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import check_for_language
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from .version import version_context
 
@@ -45,6 +46,8 @@ def health(request):
 def set_language_local(request):
     language = request.POST.get("language", "")
     target = _safe_language_redirect_target(request)
+    if check_for_language(language) and request.META.get("SCRIPT_NAME"):
+        target = _with_language_query(target, language)
     response = HttpResponseRedirect(target)
 
     if check_for_language(language):
@@ -85,6 +88,13 @@ def _safe_language_redirect_target(request):
     if script_name and not target.startswith(f"{script_name}/") and target != script_name:
         return fallback
     return target
+
+
+def _with_language_query(target, language):
+    parts = urlsplit(target)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query[settings.LIF_LANGUAGE_QUERY_PARAM] = language
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def _with_script_name(request, path):

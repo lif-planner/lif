@@ -8,7 +8,10 @@
     <title>{% block title %}LiF Planner{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{% ingress_static 'planner/favicon.svg' %}">
     <link rel="stylesheet" href="{% ingress_static 'planner/app.css' %}?v=40">
-    <script src="{% ingress_static 'planner/app.js' %}?v=8" defer></script>
+    <meta name="lif-language" content="{{ CURRENT_LANGUAGE|default:'en' }}">
+    <meta name="lif-language-param" content="lif_language">
+    <meta name="lif-ingress-path" content="{{ request.META.SCRIPT_NAME|default:'' }}">
+    <script src="{% ingress_static 'planner/app.js' %}?v=9" defer></script>
 </head>
 <body>
     <div class="app-shell">

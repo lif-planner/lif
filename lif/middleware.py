@@ -67,6 +67,7 @@ class PersistentLanguageMiddleware:
     @staticmethod
     def _preferred_language(request):
         candidates = [
+            request.GET.get(settings.LIF_LANGUAGE_QUERY_PARAM),
             request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME),
             request.COOKIES.get(settings.LIF_LANGUAGE_COOKIE_NAME),
         ]

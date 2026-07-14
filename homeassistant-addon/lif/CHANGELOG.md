@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.7
+
+- Keep the selected language active inside Home Assistant Ingress even when
+  cookies are not preserved by the ingress proxy.
+- Fix privacy mode toggling inside Home Assistant Ingress.
+
 ## 1.1.6
 
 - Keep the selected LiF language active after switching inside Home Assistant

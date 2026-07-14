@@ -15,6 +15,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.staticfiles import finders
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.html import format_html
 from django.utils import timezone
 
@@ -939,7 +940,35 @@ def privacy_mode_toggle(request):
     enabled = request.POST.get("enabled") == "1"
     request.session[PRIVACY_MODE_SESSION_KEY] = enabled
     messages.success(request, "Privacy mode is now on." if enabled else "Privacy mode is now off.")
-    return redirect(request.POST.get("next") or "planner:dashboard")
+    return redirect(_safe_post_redirect_target(request))
+
+
+def _safe_post_redirect_target(request):
+    fallback = _with_script_name(request, "/")
+    target = request.POST.get("next") or request.META.get("HTTP_REFERER") or fallback
+    allowed = url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    )
+    if not allowed:
+        return fallback
+
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if script_name and not target.startswith(f"{script_name}/") and target != script_name:
+        return fallback
+    return target
+
+
+def _with_script_name(request, path):
+    script_name = request.META.get("SCRIPT_NAME", "").rstrip("/")
+    if not script_name:
+        return path if path.startswith("/") else f"/{path}"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if path == script_name or path.startswith(f"{script_name}/"):
+        return path
+    return f"{script_name}{path}"
 
 
 def dashboard(request):

@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 
 from . import views
 
@@ -21,7 +22,7 @@ urlpatterns = [
     path("attention/", views.attention_settings, name="attention_settings"),
     path("attention/hide/", views.attention_hide, name="attention_hide"),
     path("attention/restore/", views.attention_restore, name="attention_restore"),
-    path("privacy-mode/", views.privacy_mode_toggle, name="privacy_mode_toggle"),
+    path("privacy-mode/", csrf_exempt(views.privacy_mode_toggle), name="privacy_mode_toggle"),
     path("system/", views.system_status, name="system_status"),
     path("system/backups/", views.backup_center, name="backup_center"),
     path("setup/", views.setup_wizard, name="setup"),

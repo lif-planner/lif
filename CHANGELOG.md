@@ -8,6 +8,15 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.7] - 2026-07-14
+
+### Fixed
+
+- Home Assistant Ingress language selection now stays on the selected language
+  even when add-on cookies are not preserved by the ingress proxy.
+- Privacy mode can now be toggled from Home Assistant Ingress without CSRF
+  failures.
+
 ## [1.1.6] - 2026-07-14
 
 ### Fixed

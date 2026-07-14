@@ -9195,9 +9195,33 @@ class ProjectionTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertNotEqual(response.status_code, 403)
-        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        self.assertEqual(
+            response["Location"],
+            f"/api/hassio_ingress/test-token/?{settings.LIF_LANGUAGE_QUERY_PARAM}=de",
+        )
         self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "de")
         self.assertEqual(response.cookies[settings.LIF_LANGUAGE_COOKIE_NAME].value, "de")
+
+    def test_language_switch_under_home_assistant_ingress_survives_without_cookies(self):
+        Household.objects.create(
+            name="Demo",
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.get(
+            f"/api/hassio_ingress/test-token/?{settings.LIF_LANGUAGE_QUERY_PARAM}=de",
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+            HTTP_ACCEPT_LANGUAGE="en",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<html lang="de">')
+        self.assertContains(response, "Sprache")
+        self.assertContains(response, 'meta name="lif-ingress-path" content="/api/hassio_ingress/test-token"')
 
     def test_home_assistant_ingress_keeps_selected_language_after_redirect(self):
         Household.objects.create(
@@ -9226,6 +9250,35 @@ class ProjectionTests(TestCase):
         response = client.post(
             "/api/hassio_ingress/test-token/i18n/setlang/",
             {"language": "de", "next": "/dashboard-lif/sidebar"},
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f"/api/hassio_ingress/test-token/?{settings.LIF_LANGUAGE_QUERY_PARAM}=de",
+        )
+
+    def test_privacy_toggle_under_home_assistant_ingress_does_not_require_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            "/api/hassio_ingress/test-token/privacy-mode/",
+            {"enabled": "1", "next": "/api/hassio_ingress/test-token/"},
+            HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertNotEqual(response.status_code, 403)
+        self.assertEqual(response["Location"], "/api/hassio_ingress/test-token/")
+        self.assertTrue(client.session["privacy_mode_enabled"])
+
+    def test_privacy_toggle_under_home_assistant_ingress_rejects_ha_ui_redirects(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            "/api/hassio_ingress/test-token/privacy-mode/",
+            {"enabled": "1", "next": "/dashboard-lif/sidebar"},
             HTTP_X_INGRESS_PATH="/api/hassio_ingress/test-token",
         )
 
