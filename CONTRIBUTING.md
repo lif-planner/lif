@@ -14,6 +14,15 @@ pipenv run python manage.py runserver 127.0.0.1:8000
 
 Open `http://127.0.0.1:8000/`.
 
+Install the tracked Git hooks once per checkout:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hooks run the staged secret scan before commits and guard public releases
+against accidental personal author or committer metadata.
+
 ## Before Opening A Pull Request
 
 Run:

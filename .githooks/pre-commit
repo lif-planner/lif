@@ -1,4 +1,5 @@
 #!/bin/sh
 set -eu
 
+python3 scripts/check_git_identity.py --pre-commit
 python3 scripts/scan_secrets.py --staged

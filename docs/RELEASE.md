@@ -24,6 +24,17 @@ Before running the export:
    LiF Maintainers <yogitea@users.noreply.github.com>
    ```
 
+5. Enable the tracked Git hooks in every checkout that creates or promotes
+   public commits:
+
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+   The hooks reject commits on `public-release` when the committer is not the
+   maintainer identity and reject pushes to the public repository if any pushed
+   commit has a non-maintainer author or committer.
+
 ## Final Prep Commit
 
 On private `main`, make one normal private commit that:
@@ -151,7 +162,14 @@ If a private commit is safe for public history, cherry-pick it onto
 ```bash
 git switch public-release
 git pull public main
-git cherry-pick <private-commit-sha>
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git cherry-pick <private-commit-sha>
+GIT_AUTHOR_NAME='LiF Maintainers' \
+GIT_AUTHOR_EMAIL='yogitea@users.noreply.github.com' \
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git commit --amend --no-edit --reset-author
 python3 scripts/scan_secrets.py
 python3 scripts/scan_public_readiness.py
 pipenv run python manage.py test
@@ -175,9 +193,30 @@ public-safe, cherry-pick them in order:
 ```bash
 git switch public-release
 git pull public main
-git cherry-pick <oldest-safe-sha>
-git cherry-pick <next-safe-sha>
-git cherry-pick <newest-safe-sha>
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git cherry-pick <oldest-safe-sha>
+GIT_AUTHOR_NAME='LiF Maintainers' \
+GIT_AUTHOR_EMAIL='yogitea@users.noreply.github.com' \
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git commit --amend --no-edit --reset-author
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git cherry-pick <next-safe-sha>
+GIT_AUTHOR_NAME='LiF Maintainers' \
+GIT_AUTHOR_EMAIL='yogitea@users.noreply.github.com' \
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git commit --amend --no-edit --reset-author
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git cherry-pick <newest-safe-sha>
+GIT_AUTHOR_NAME='LiF Maintainers' \
+GIT_AUTHOR_EMAIL='yogitea@users.noreply.github.com' \
+GIT_COMMITTER_NAME='LiF Maintainers' \
+GIT_COMMITTER_EMAIL='yogitea@users.noreply.github.com' \
+  git commit --amend --no-edit --reset-author
 python3 scripts/scan_secrets.py
 python3 scripts/scan_public_readiness.py
 pipenv run python manage.py test
