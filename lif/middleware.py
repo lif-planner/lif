@@ -65,9 +65,7 @@ class HomeAssistantIngressMiddleware:
     def _should_bypass_csrf(request):
         if not settings.LIF_HOME_ASSISTANT_ADDON:
             return False
-        if request.headers.get("X-Ingress-Path", "").strip():
-            return True
-        return request.META.get("HTTP_SEC_FETCH_DEST") == "iframe"
+        return True
 
 
 class PersistentLanguageMiddleware:

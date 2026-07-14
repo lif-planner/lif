@@ -8,6 +8,14 @@ This project follows semantic versioning after the first public release.
 
 No unreleased changes yet.
 
+## [1.1.12] - 2026-07-14
+
+### Fixed
+
+- Home Assistant privacy mode now behaves as an iframe-local browser preference
+  using `lif_privacy` query state instead of depending on POST/session
+  persistence.
+
 ## [1.1.11] - 2026-07-14
 
 ### Fixed

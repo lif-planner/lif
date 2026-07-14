@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.12
+
+- Make privacy mode a Home Assistant iframe-local browser preference so it no
+  longer depends on session cookies or POST persistence.
+
 ## 1.1.11
 
 - Fix remaining Home Assistant Ingress POST controls, including household

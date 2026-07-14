@@ -13,7 +13,7 @@
     <meta name="lif-privacy" content="{{ privacy_mode_enabled|yesno:'1,0' }}">
     <meta name="lif-privacy-param" content="lif_privacy">
     <meta name="lif-ingress-path" content="{{ request.META.SCRIPT_NAME|default:'' }}">
-    <script src="{% ingress_static 'planner/app.js' %}?v=9" defer></script>
+    <script src="{% ingress_static 'planner/app.js' %}?v=10" defer></script>
 </head>
 <body>
     <div class="app-shell">
@@ -116,7 +116,7 @@
                 </details>
             </nav>
             <footer class="footer">
-                <form action="{% url 'planner:privacy_mode_toggle' %}" method="post" class="privacy-switcher">
+                <form action="{% url 'planner:privacy_mode_toggle' %}" method="post" class="privacy-switcher" data-privacy-preference>
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     {% if privacy_mode_enabled %}

@@ -95,16 +95,24 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
     document.querySelectorAll("form.privacy-switcher").forEach((form) => {
-        form.addEventListener("submit", () => {
+        form.addEventListener("submit", (event) => {
             const enabled = form.querySelector("input[name='enabled']");
             if (!enabled) {
                 return;
             }
+            const nextPrivacy = enabled.value === "1" ? "1" : "0";
             try {
-                localStorage.setItem(privacyStorageKey, enabled.value === "1" ? "1" : "0");
+                localStorage.setItem(privacyStorageKey, nextPrivacy);
             } catch (error) {
                 /* ignore storage being unavailable */
             }
+            event.preventDefault();
+            const nextUrl = new URL(window.location.href);
+            if (language) {
+                nextUrl.searchParams.set(languageParamName, language);
+            }
+            nextUrl.searchParams.set(privacyParamName, nextPrivacy);
+            window.location.assign(nextUrl.toString());
         });
     });
 });

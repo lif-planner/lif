@@ -3092,6 +3092,21 @@ class ProjectionTests(TestCase):
         self.assertContains(response, 'name="language"')
         self.assertContains(response, "German")
 
+    def test_base_layout_marks_privacy_control_as_browser_preference(self):
+        Household.objects.create(
+            name="Demo",
+            starting_balance=Decimal("1000.00"),
+            start_month=date(2026, 1, 1),
+            planning_months=12,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("planner:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "data-privacy-preference")
+        self.assertContains(response, 'meta name="lif-privacy-param" content="lif_privacy"')
+
     def test_base_layout_uses_active_language(self):
         Household.objects.create(
             name="Demo",
@@ -9352,6 +9367,7 @@ class ProjectionTests(TestCase):
             f"/api/hassio_ingress/test-token/?{settings.LIF_LANGUAGE_QUERY_PARAM}=de",
         )
 
+    @override_settings(LIF_HOME_ASSISTANT_ADDON=True)
     def test_privacy_toggle_under_home_assistant_ingress_does_not_require_csrf(self):
         client = Client(enforce_csrf_checks=True)
 
@@ -9369,6 +9385,7 @@ class ProjectionTests(TestCase):
         )
         self.assertTrue(client.session["privacy_mode_enabled"])
 
+    @override_settings(LIF_HOME_ASSISTANT_ADDON=True)
     def test_privacy_toggle_under_home_assistant_ingress_without_header(self):
         client = Client(enforce_csrf_checks=True)
 
@@ -9404,6 +9421,7 @@ class ProjectionTests(TestCase):
         self.assertContains(response, "On")
         self.assertNotContains(response, "1,234.56 EUR")
 
+    @override_settings(LIF_HOME_ASSISTANT_ADDON=True)
     def test_privacy_toggle_under_home_assistant_ingress_rejects_ha_ui_redirects(self):
         client = Client(enforce_csrf_checks=True)
 
@@ -9418,6 +9436,16 @@ class ProjectionTests(TestCase):
             response["Location"],
             f"/api/hassio_ingress/test-token/?{settings.LIF_PRIVACY_QUERY_PARAM}=1",
         )
+
+    def test_privacy_toggle_requires_csrf_outside_home_assistant_addon_mode(self):
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
+            "/privacy-mode/",
+            {"enabled": "1", "next": "/"},
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_deploy_local_collects_static_files(self):
         with patch("planner.management.commands.deploy_local.call_command") as command:
